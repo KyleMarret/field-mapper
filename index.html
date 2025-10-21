@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Field Mapper</title>
+    <title>KAS Field Sampler</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -21,7 +20,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             overflow: hidden;
-            touch-action: none;
+            background: #f0f0f0;
         }
         
         #map {
@@ -29,340 +28,350 @@
             width: 100vw;
         }
         
-        .main-panel {
-            position: absolute;
+        /* Main Control Panel */
+        .control-panel {
+            position: fixed;
             top: 10px;
             left: 10px;
-            background: rgba(255, 255, 255, 0.98);
+            background: white;
             border-radius: 12px;
-            padding: 12px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             z-index: 1000;
-            width: 280px;
-            max-height: 50vh;
+            width: 320px;
+            max-height: 85vh;
             overflow-y: auto;
         }
         
         .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 12px 12px 0 0;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        
+        .panel-section {
+            padding: 15px;
             border-bottom: 1px solid #e0e0e0;
         }
         
-        .grower-select {
+        .panel-section:last-child {
+            border-bottom: none;
+        }
+        
+        .section-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .form-input, .form-select {
             width: 100%;
-            padding: 10px;
+            padding: 8px 12px;
             border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            margin-bottom: 15px;
+            border-radius: 6px;
+            font-size: 14px;
             background: white;
         }
         
-        .field-section {
-            margin-top: 10px;
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
         }
         
-        .field-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        
-        .field-title {
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
-        .add-field-btn {
-            background: #007AFF;
-            color: white;
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 10px;
             border: none;
-            padding: 5px 12px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
+            transition: all 0.2s;
+            margin: 4px 0;
         }
         
-        .field-list {
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+        
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #38a169;
+        }
+        
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+        
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+        
+        .btn-outline {
+            background: white;
+            color: #667eea;
+            border: 1px solid #667eea;
+        }
+        
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-group {
             display: flex;
-            flex-direction: column;
-            gap: 5px;
+            gap: 8px;
+        }
+        
+        .btn-group .btn {
+            flex: 1;
+        }
+        
+        /* Field List */
+        .field-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
         }
         
         .field-item {
+            background: #f8f9fa;
+            border-radius: 6px;
             padding: 10px;
-            background: #f8f8f8;
-            border-radius: 8px;
+            margin-bottom: 8px;
             cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             transition: all 0.2s;
             border: 2px solid transparent;
         }
         
         .field-item:hover {
-            background: #e8e8e8;
+            background: #e9ecef;
         }
         
         .field-item.active {
-            background: #007AFF;
-            color: white;
-            border-color: #0051D5;
-        }
-        
-        .field-info {
-            flex: 1;
+            border-color: #667eea;
+            background: #f0f4ff;
         }
         
         .field-name {
             font-weight: 500;
-            margin-bottom: 2px;
-        }
-        
-        .field-details {
-            font-size: 11px;
-            opacity: 0.7;
-        }
-        
-        .field-actions {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .field-action-btn {
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            border: none;
-            background: rgba(0,0,0,0.1);
-            cursor: pointer;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .field-item.active .field-action-btn {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .gps-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 12px;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .gps-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #ff0000;
-            animation: pulse 1.5s infinite;
-        }
-        
-        .gps-dot.good {
-            background: #00ff00;
-        }
-        
-        .gps-dot.medium {
-            background: #ffaa00;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        
-        .bottom-toolbar {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 30px;
-            padding: 10px 20px;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.2);
-            z-index: 1000;
-            display: flex;
-            gap: 15px;
-        }
-        
-        .tool-btn {
-            min-width: 60px;
-            padding: 8px 12px;
-            border-radius: 25px;
-            border: none;
-            background: white;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            transition: all 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            gap: 2px;
-        }
-        
-        .tool-btn span {
-            font-size: 10px;
-            font-weight: 500;
-        }
-        
-        .tool-btn:active {
-            transform: scale(0.95);
-        }
-        
-        .tool-btn.active {
-            background: #007AFF !important;
-            color: white;
-        }
-        
-        .tool-btn.primary {
-            background: #007AFF;
-            color: white;
-        }
-        
-        .tool-btn.success {
-            background: #34C759;
-            color: white;
-        }
-        
-        .tool-btn.warning {
-            background: #FF9500;
-            color: white;
-        }
-        
-        .tool-btn:active {
-            transform: scale(0.95);
-        }
-        
-        .tool-btn.active {
-            background: #007AFF;
-        }
-        
-        .tool-btn.primary {
-            background: #007AFF;
-        }
-        
-        .tool-btn.success {
-            background: #34C759;
-        }
-        
-        .tool-btn.warning {
-            background: #FF9500;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .modal.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 25px;
-            width: 90%;
-            max-width: 400px;
-        }
-        
-        .modal-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
-        }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            font-weight: 500;
             color: #333;
         }
         
-        .form-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
+        .field-details {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
         }
         
-        .modal-buttons {
+        /* Layer Controls */
+        .layer-controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 200px;
+        }
+        
+        .layer-controls h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #333;
+        }
+        
+        .layer-toggle {
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        
-        .btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
+            align-items: center;
+            margin: 8px 0;
             cursor: pointer;
         }
         
-        .btn-cancel {
-            background: #f0f0f0;
+        .layer-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            cursor: pointer;
         }
         
-        .btn-primary {
-            background: #007AFF;
-            color: white;
+        .layer-toggle label {
+            cursor: pointer;
+            font-size: 14px;
         }
         
-        .help-text {
-            position: absolute;
-            bottom: 100px;
+        /* Status Bar */
+        .status-bar {
+            position: fixed;
+            bottom: 70px;
+            left: 10px;
+            background: white;
+            border-radius: 8px;
+            padding: 10px 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            font-size: 12px;
+        }
+        
+        .status-item {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        
+        .status-label {
+            color: #666;
+            margin-right: 5px;
+        }
+        
+        .status-value {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        /* Toolbar */
+        .toolbar {
+            position: fixed;
+            bottom: 15px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
+            background: white;
+            border-radius: 30px;
             padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            z-index: 999;
-            display: none;
+            display: flex;
+            gap: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
         }
         
-        .help-text.active {
+        .tool-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: none;
+            background: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .tool-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        
+        .tool-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 50%;
+            transform: translateX(50%);
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 9999;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+        
+        .toast.show {
             display: block;
         }
         
-        .no-fields {
+        @keyframes slideDown {
+            from {
+                transform: translateX(50%) translateY(-100%);
+            }
+            to {
+                transform: translateX(50%) translateY(0);
+            }
+        }
+        
+        /* File Upload */
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .file-upload input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-upload-label {
+            display: block;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            transition: all 0.2s;
+        }
+        
+        .file-upload-label:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+            color: #667eea;
+        }
+        
+        /* No data message */
+        .no-data {
             padding: 20px;
             text-align: center;
             color: #999;
@@ -371,767 +380,289 @@
     </style>
 </head>
 <body>
-    <!-- VERSION BANNER - Remove this later -->
-    <div style="position: fixed; top: 0; left: 0; right: 0; background: green; color: white; padding: 10px; text-align: center; z-index: 99999; font-size: 16px; font-weight: bold;">
-        VERSION 3.0 - SOIL LAYERS FIXED!
-    </div>
-    
     <div id="map"></div>
     
-    <!-- GPS Indicator -->
-    <div class="gps-indicator">
-        <div class="gps-dot" id="gpsDot"></div>
-        <span id="gpsText">Locating...</span>
-    </div>
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
     
     <!-- Main Control Panel -->
-    <div class="main-panel">
+    <div class="control-panel">
         <div class="panel-header">
-            <span style="font-weight: 600; font-size: 16px;">Field Mapper</span>
-            <button class="field-action-btn" onclick="togglePanel()" style="background: transparent;">
-                ↕️
-            </button>
+            KAS Field Sampler
         </div>
         
-        <select class="grower-select" id="growerSelect" onchange="selectGrower()">
-            <option value="">Select Grower...</option>
-        </select>
-        
-        <button class="add-field-btn" onclick="addNewGrower()" style="width: 100%; margin-bottom: 15px;">
-            + Add New Grower
-        </button>
-        
-        <div class="field-section" id="fieldSection" style="display: none;">
-            <div class="field-header">
-                <span class="field-title">Fields</span>
-                <button class="add-field-btn" onclick="showFieldModal()">+ Add Field</button>
+        <!-- Grower Section -->
+        <div class="panel-section">
+            <div class="section-title">Grower Information</div>
+            <div class="form-group">
+                <label class="form-label">Select Grower</label>
+                <select class="form-select" id="growerSelect" onchange="selectGrower()">
+                    <option value="">-- Select or Add New --</option>
+                </select>
             </div>
+            <div class="btn-group">
+                <button class="btn btn-outline" onclick="showAddGrower()">+ Add</button>
+                <button class="btn btn-outline" onclick="editGrower()">Edit</button>
+                <button class="btn btn-outline" onclick="deleteGrower()">Delete</button>
+            </div>
+        </div>
+        
+        <!-- Field Section -->
+        <div class="panel-section" id="fieldSection" style="display: none;">
+            <div class="section-title">Field Management</div>
             <div class="field-list" id="fieldList">
-                <div class="no-fields">No fields yet. Click "+ Add Field" to create one.</div>
+                <div class="no-data">No fields added yet</div>
             </div>
+            <button class="btn btn-primary" onclick="showAddField()">+ Add New Field</button>
+            <button class="btn btn-success" id="drawFieldBtn" onclick="drawFieldBoundary()">Draw Field Boundary</button>
+        </div>
+        
+        <!-- Sampling Section -->
+        <div class="panel-section" id="samplingSection" style="display: none;">
+            <div class="section-title">Sampling</div>
+            <div class="form-group">
+                <label class="form-label">Active Field: <span id="activeFieldName" style="color: #667eea; font-weight: 600;">None</span></label>
+            </div>
+            <button class="btn btn-warning" onclick="startSampling()">Start Sampling</button>
+            <div class="form-group" style="margin-top: 10px;">
+                <label class="form-label">Sample Count: <span id="sampleCount" style="font-weight: 600;">0</span></label>
+            </div>
+        </div>
+        
+        <!-- Export Section -->
+        <div class="panel-section" id="exportSection" style="display: none;">
+            <div class="section-title">Data Export</div>
+            <button class="btn btn-success" onclick="exportCSV()">Export to CSV</button>
+            <button class="btn btn-outline" onclick="saveToLocal()">Save to Browser</button>
+            <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
         </div>
     </div>
     
-    <!-- Bottom Toolbar -->
-    <div class="bottom-toolbar">
-        <button class="tool-btn primary" onclick="centerOnLocation()" title="My Location">
-            📍<span>GPS</span>
-        </button>
-        <button class="tool-btn success" id="drawBtn" onclick="toggleDrawing()" title="Draw Field Boundary">
-            ✏️<span>Draw</span>
-        </button>
-        <button class="tool-btn warning" onclick="dropPin()" title="Drop Sample Pin">
-            🎯<span>Sample</span>
-        </button>
-        <button class="tool-btn" onclick="toggleMapType()" title="Toggle Map Type">
-            🗺️<span>Map</span>
-        </button>
-        <button class="tool-btn" id="layersBtn" onclick="toggleLayerPanel()" title="Toggle Layers">
-            🎚️<span>Layers</span>
-        </button>
-        <button class="tool-btn" onclick="manualLocationMode()" title="Set Location Manually">
-            👆<span>Manual</span>
-        </button>
-        <button class="tool-btn" onclick="saveAllData()" title="Save Data">
-            💾<span>Save</span>
-        </button>
-    </div>
-    
-    <!-- Help Text -->
-    <div class="help-text" id="helpText">
-        Tap points on the map to create field boundary. Double-tap to finish.
-    </div>
-    
-    <!-- Add/Edit Field Modal -->
-    <div class="modal" id="fieldModal">
-        <div class="modal-content">
-            <div class="modal-title">Add New Field</div>
-            
-            <div class="form-group">
-                <label class="form-label">Field Name *</label>
-                <input type="text" class="form-input" id="fieldName" placeholder="e.g., North 40, Home Field">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Acres</label>
-                <input type="number" class="form-input" id="fieldAcres" placeholder="e.g., 40">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Current Crop</label>
-                <input type="text" class="form-input" id="fieldCrop" placeholder="e.g., Corn, Soybeans">
-            </div>
-            
-            <div class="modal-buttons">
-                <button class="btn btn-cancel" onclick="closeFieldModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveField()">Save Field</button>
-            </div>
+    <!-- Layer Controls -->
+    <div class="layer-controls">
+        <h4>Map Layers</h4>
+        <div class="layer-toggle">
+            <input type="checkbox" id="soilToggle" onchange="toggleSoilLayer()">
+            <label for="soilToggle">SSURGO Soil Data</label>
+        </div>
+        <div class="layer-toggle">
+            <input type="checkbox" id="boundaryToggle" checked onchange="toggleBoundaries()">
+            <label for="boundaryToggle">Field Boundaries</label>
+        </div>
+        <div class="layer-toggle">
+            <input type="checkbox" id="sampleToggle" checked onchange="toggleSamples()">
+            <label for="sampleToggle">Sample Points</label>
+        </div>
+        <div class="layer-toggle">
+            <input type="checkbox" id="satelliteToggle" checked onchange="toggleMapType()">
+            <label for="satelliteToggle">Satellite View</label>
+        </div>
+        <hr style="margin: 10px 0;">
+        <div class="file-upload">
+            <input type="file" id="soilUpload" accept=".json,.geojson,.kml">
+            <label for="soilUpload" class="file-upload-label">
+                📁 Load Soil Data (JSON/KML)
+            </label>
+        </div>
+        <div style="margin-top: 5px; font-size: 11px; color: #666;" id="soilStatus">No soil data loaded</div>
+        <div style="margin-top: 8px; padding: 8px; background: #fff9e6; border-radius: 4px; font-size: 11px; color: #856404; border: 1px solid #ffd966;">
+            <b>Note:</b> MUSYM codes vary by county. The soil series names shown are estimates. Check Web Soil Survey for exact interpretations.
         </div>
     </div>
     
-    <!-- Add Grower Modal -->
-    <div class="modal" id="growerModal">
-        <div class="modal-content">
-            <div class="modal-title">Add New Grower</div>
-            
-            <div class="form-group">
-                <label class="form-label">Grower/Farm Name *</label>
-                <input type="text" class="form-input" id="growerName" placeholder="e.g., Smith Farm, Johnson Ranch">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Contact Person</label>
-                <input type="text" class="form-input" id="growerContact" placeholder="e.g., John Smith">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Phone</label>
-                <input type="tel" class="form-input" id="growerPhone" placeholder="e.g., 555-0123">
-            </div>
-            
-            <div class="modal-buttons">
-                <button class="btn btn-cancel" onclick="closeGrowerModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveGrower()">Save Grower</button>
-            </div>
-        </div>
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <span class="status-item">
+            <span class="status-label">GPS:</span>
+            <span class="status-value" id="gpsStatus">Waiting...</span>
+        </span>
+        <span class="status-item">
+            <span class="status-label">Grower:</span>
+            <span class="status-value" id="currentGrower">None</span>
+        </span>
+        <span class="status-item">
+            <span class="status-label">Field:</span>
+            <span class="status-value" id="currentField">None</span>
+        </span>
+    </div>
+    
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <button class="tool-btn" onclick="centerOnGPS()" title="Center on GPS">📍</button>
+        <button class="tool-btn" id="dropPinBtn" onclick="dropPin()" title="Drop Sample Pin">🎯</button>
+        <button class="tool-btn" onclick="zoomIn()" title="Zoom In">➕</button>
+        <button class="tool-btn" onclick="zoomOut()" title="Zoom Out">➖</button>
+        <button class="tool-btn" onclick="zoomToField()" title="Zoom to Field">🔍</button>
     </div>
     
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
     
     <script>
         // Global variables
         let map;
         let currentLocation = null;
         let locationMarker = null;
-        let currentGrower = null;
-        let currentField = null;
-        let isDrawing = false;
-        let drawControl = null;
-        let fieldBoundaries = {};
-        let sampleMarkers = {};
-        let currentMapType = 'satellite';
         let soilLayer = null;
-        let soilData = {};
-        let soilColors = {};
+        let soilData = null;
+        let drawControl = null;
+        let isDrawing = false;
+        let isSampling = false;
         
-        // Data storage
+        // Data structures
         let growers = {};
+        let currentGrowerId = null;
+        let currentFieldId = null;
+        let fieldBoundaries = {};
+        let sampleMarkers = [];
         
         // Initialize map
         function initMap() {
-            // Create map centered on US Midwest (will update with GPS)
-            map = L.map('map', {
-                center: [41.5, -93.5], // Iowa center as default
-                zoom: 10,
-                zoomControl: false
-            });
+            // Start with a wider US view until GPS or soil data loads
+            map = L.map('map').setView([38.5, -90.5], 10); // Missouri/Illinois border area
             
-            // Add zoom control to bottom right
-            L.control.zoom({
-                position: 'bottomright'
+            // Map layers
+            const satellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+                maxZoom: 22,
+                attribution: '© Google'
             }).addTo(map);
-            
-            // Add high-resolution satellite imagery with labels
-            const satellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-                maxZoom: 22,
-                maxNativeZoom: 22,
-                attribution: '© Google'
-            });
-            
-            // Hybrid view - satellite with labels
-            const hybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                maxZoom: 22,
-                maxNativeZoom: 22,
-                attribution: '© Google'
-            });
             
             const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 20,
                 attribution: '© OpenStreetMap'
             });
             
-            // Start with hybrid (satellite + labels)
-            hybrid.addTo(map);
-            
-            // Store layers for toggle
-            window.mapLayers = { satellite, hybrid, streets };
-            window.currentBaseLayer = hybrid;
+            window.mapLayers = { satellite, streets, current: 'satellite' };
             
             // Start GPS tracking
-            startGPSTracking();
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(updateGPS, handleGPSError, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                });
+            }
             
-            // Track manual map movements
-            map.on('movestart', function() {
-                window.mapMovedManually = true;
-            });
+            // Setup file upload
+            document.getElementById('soilUpload').addEventListener('change', handleSoilUpload);
             
             // Load saved data
             loadSavedData();
         }
         
-        // GPS tracking with better iOS/Safari support
-        let watchId = null;
-        
-        function startGPSTracking() {
-            // First, add a button to manually trigger GPS permission on iOS
-            if (!window.gpsRequested) {
-                window.gpsRequested = true;
-                console.log('Requesting GPS access...');
-                
-                // For iOS Safari, we need user interaction to trigger GPS
-                const gpsButton = document.createElement('button');
-                gpsButton.id = 'gpsPermissionBtn';
-                gpsButton.style.cssText = `
-                    position: fixed;
-                    top: 60px;
-                    right: 10px;
-                    background: #007AFF;
-                    color: white;
-                    padding: 10px 20px;
-                    border-radius: 20px;
-                    border: none;
-                    z-index: 10000;
-                    font-size: 14px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-                `;
-                gpsButton.textContent = '📍 Enable GPS';
-                gpsButton.onclick = function() {
-                    requestGPSPermission();
-                    this.remove();
-                };
-                document.body.appendChild(gpsButton);
-            }
+        // GPS functions
+        function updateGPS(position) {
+            currentLocation = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                accuracy: position.coords.accuracy
+            };
             
-            // Try to start GPS immediately anyway
-            requestGPSPermission();
-        }
-        
-        function requestGPSPermission() {
-            if ('geolocation' in navigator) {
-                // Clear any existing watch
-                if (watchId) {
-                    navigator.geolocation.clearWatch(watchId);
-                }
-                
-                // First try getCurrentPosition to trigger permission prompt
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        console.log('GPS Success - Initial position:', position.coords);
-                        updateLocation(position);
-                        
-                        // Now start watching position
-                        watchId = navigator.geolocation.watchPosition(
-                            (pos) => {
-                                console.log('GPS Update:', pos.coords);
-                                updateLocation(pos);
-                            },
-                            (error) => {
-                                handleGPSError(error);
-                            },
-                            {
-                                enableHighAccuracy: true,
-                                timeout: 30000, // Increased timeout
-                                maximumAge: 0
-                            }
-                        );
-                    },
-                    (error) => {
-                        handleGPSError(error);
-                        // Try watch anyway in case getCurrentPosition fails
-                        watchId = navigator.geolocation.watchPosition(
-                            (pos) => {
-                                console.log('GPS Update (watch):', pos.coords);
-                                updateLocation(pos);
-                            },
-                            (err) => {
-                                handleGPSError(err);
-                            },
-                            {
-                                enableHighAccuracy: true,
-                                timeout: 30000,
-                                maximumAge: 0
-                            }
-                        );
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
-                    }
-                );
+            document.getElementById('gpsStatus').textContent = 
+                `${currentLocation.lat.toFixed(5)}, ${currentLocation.lng.toFixed(5)}`;
+            
+            if (locationMarker) {
+                locationMarker.setLatLng([currentLocation.lat, currentLocation.lng]);
             } else {
-                updateGPSIndicator(null, 'GPS Not Supported');
-                alert('Geolocation is not supported by this browser.');
+                locationMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
+                    radius: 8,
+                    fillColor: '#007AFF',
+                    color: 'white',
+                    weight: 3,
+                    fillOpacity: 1,
+                    zIndexOffset: 1000
+                }).addTo(map);
             }
         }
         
         function handleGPSError(error) {
-            console.error('GPS Error:', error.code, error.message);
-            
-            switch(error.code) {
-                case 1: // PERMISSION_DENIED
-                    updateGPSIndicator(null, 'GPS Permission Denied');
-                    showGPSPermissionInstructions();
-                    break;
-                case 2: // POSITION_UNAVAILABLE
-                    updateGPSIndicator(null, 'GPS Signal Lost');
-                    setTimeout(requestGPSPermission, 5000); // Retry in 5 seconds
-                    break;
-                case 3: // TIMEOUT
-                    updateGPSIndicator(null, 'GPS Timeout - Retrying...');
-                    setTimeout(requestGPSPermission, 3000); // Retry in 3 seconds
-                    break;
-                default:
-                    updateGPSIndicator(null, 'GPS Error: ' + error.message);
-            }
+            document.getElementById('gpsStatus').textContent = 'GPS unavailable';
+            console.error('GPS Error:', error);
         }
         
-        function showGPSPermissionInstructions() {
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed;
-                top: 80px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: white;
-                padding: 20px;
-                border-radius: 15px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                z-index: 10000;
-                max-width: 90%;
-                text-align: left;
-            `;
-            modal.innerHTML = `
-                <h3 style="margin-top: 0;">📍 Enable Location Access</h3>
-                <p style="margin: 10px 0;"><strong>For iPhone/iPad:</strong></p>
-                <ol style="margin: 10px 0; padding-left: 20px;">
-                    <li>Go to <strong>Settings</strong></li>
-                    <li>Scroll to <strong>Safari</strong></li>
-                    <li>Tap <strong>Location</strong></li>
-                    <li>Select <strong>"Ask" or "Allow"</strong></li>
-                    <li>Return here and refresh the page</li>
-                </ol>
-                <p style="margin: 10px 0;"><strong>Quick Check:</strong></p>
-                <ul style="margin: 10px 0; padding-left: 20px;">
-                    <li>Make sure Location Services is ON</li>
-                    <li>Check airplane mode is OFF</li>
-                    <li>Try refreshing the page</li>
-                </ul>
-                <div style="display: flex; gap: 10px; margin-top: 15px;">
-                    <button onclick="location.reload()" style="flex: 1; padding: 10px; background: #007AFF; color: white; border: none; border-radius: 8px;">Refresh Page</button>
-                    <button onclick="this.parentElement.parentElement.remove()" style="flex: 1; padding: 10px; background: #f0f0f0; border: none; border-radius: 8px;">Close</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-        
-        // Update location with better feedback
-        function updateLocation(position) {
-            currentLocation = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-                accuracy: position.coords.accuracy
-            };
-            
-            console.log('Location updated:', currentLocation);
-            
-            // Remove the GPS enable button if it exists
-            const btn = document.getElementById('gpsPermissionBtn');
-            if (btn) btn.remove();
-            
-            // Update GPS indicator
-            updateGPSIndicator(position.coords.accuracy);
-            
-            // Update or create location marker
-            if (locationMarker) {
-                locationMarker.setLatLng([currentLocation.lat, currentLocation.lng]);
-            } else {
-                locationMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
-                    radius: 8,
-                    fillColor: '#007AFF',
-                    color: 'white',
-                    weight: 3,
-                    fillOpacity: 1,
-                    zIndexOffset: 1000
-                }).addTo(map);
-                
-                // Center on first GPS lock only if we haven't manually moved the map
-                if (!window.mapMovedManually) {
-                    map.setView([currentLocation.lat, currentLocation.lng], 16);
-                }
-            }
-            
-            // Add/update accuracy circle
-            if (window.accuracyCircle) {
-                window.accuracyCircle.setLatLng([currentLocation.lat, currentLocation.lng]);
-                window.accuracyCircle.setRadius(currentLocation.accuracy);
-            } else {
-                window.accuracyCircle = L.circle([currentLocation.lat, currentLocation.lng], {
-                    radius: currentLocation.accuracy,
-                    color: '#007AFF',
-                    fillColor: '#007AFF',
-                    fillOpacity: 0.1,
-                    weight: 1
-                }).addTo(map);
-            }
-        }
-        
-        function updateLocation(position) {
-            currentLocation = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-                accuracy: position.coords.accuracy
-            };
-            
-            // Update GPS indicator
-            updateGPSIndicator(position.coords.accuracy);
-            
-            // Update or create location marker
-            if (locationMarker) {
-                locationMarker.setLatLng([currentLocation.lat, currentLocation.lng]);
-            } else {
-                locationMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
-                    radius: 8,
-                    fillColor: '#007AFF',
-                    color: 'white',
-                    weight: 3,
-                    fillOpacity: 1,
-                    zIndexOffset: 1000
-                }).addTo(map);
-                
-                // Center on first GPS lock
-                map.setView([currentLocation.lat, currentLocation.lng], 15);
-            }
-            
-            // Add accuracy circle
-            if (window.accuracyCircle) {
-                window.accuracyCircle.setLatLng([currentLocation.lat, currentLocation.lng]);
-                window.accuracyCircle.setRadius(currentLocation.accuracy);
-            } else {
-                window.accuracyCircle = L.circle([currentLocation.lat, currentLocation.lng], {
-                    radius: currentLocation.accuracy,
-                    color: '#007AFF',
-                    fillColor: '#007AFF',
-                    fillOpacity: 0.1,
-                    weight: 1
-                }).addTo(map);
-            }
-        }
-        
-        function updateGPSIndicator(accuracy, message = null) {
-            const dot = document.getElementById('gpsDot');
-            const text = document.getElementById('gpsText');
-            
-            if (message) {
-                text.textContent = message;
-                dot.className = 'gps-dot';
-            } else if (accuracy) {
-                text.textContent = `GPS: ±${Math.round(accuracy)}m`;
-                if (accuracy < 10) {
-                    dot.className = 'gps-dot good';
-                } else if (accuracy < 30) {
-                    dot.className = 'gps-dot medium';
-                } else {
-                    dot.className = 'gps-dot';
-                }
-            }
-        }
-        
-        // Manual location mode for when GPS isn't available
-        function manualLocationMode() {
-            const helpText = document.getElementById('helpText');
-            helpText.textContent = 'Tap on the map to set your location manually';
-            helpText.classList.add('active');
-            
-            map.once('click', function(e) {
-                currentLocation = {
-                    lat: e.latlng.lat,
-                    lng: e.latlng.lng,
-                    accuracy: 10, // Assume reasonable accuracy for manual placement
-                    manual: true
-                };
-                
-                // Update or create location marker
-                if (locationMarker) {
-                    locationMarker.setLatLng([currentLocation.lat, currentLocation.lng]);
-                } else {
-                    locationMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
-                        radius: 8,
-                        fillColor: '#FF9500', // Orange for manual
-                        color: 'white',
-                        weight: 3,
-                        fillOpacity: 1,
-                        zIndexOffset: 1000
-                    }).addTo(map);
-                }
-                
-                updateGPSIndicator(10, 'Manual Location Set');
-                helpText.classList.remove('active');
-                
-                // Update accuracy circle
-                if (window.accuracyCircle) {
-                    window.accuracyCircle.setLatLng([currentLocation.lat, currentLocation.lng]);
-                    window.accuracyCircle.setRadius(10);
-                }
-            });
-        }
-        
-        // Center on location (works with GPS or manual)
-        function centerOnLocation() {
-            if (currentLocation) {
-                map.setView([currentLocation.lat, currentLocation.lng], 18);
-            } else {
-                // If no GPS, prompt for manual location
-                if (confirm('GPS not available. Would you like to set your location manually by tapping the map?')) {
-                    manualLocationMode();
-                }
-            }
-        }
-        
-        function toggleMapType() {
-            // Cycle through three map types
-            if (window.currentBaseLayer === window.mapLayers.hybrid) {
-                map.removeLayer(window.mapLayers.hybrid);
-                map.addLayer(window.mapLayers.satellite);
-                window.currentBaseLayer = window.mapLayers.satellite;
-                showMapTypeNotification('Satellite View (No Labels)');
-            } else if (window.currentBaseLayer === window.mapLayers.satellite) {
-                map.removeLayer(window.mapLayers.satellite);
-                map.addLayer(window.mapLayers.streets);
-                window.currentBaseLayer = window.mapLayers.streets;
-                showMapTypeNotification('Street Map');
-            } else {
-                map.removeLayer(window.mapLayers.streets);
-                map.addLayer(window.mapLayers.hybrid);
-                window.currentBaseLayer = window.mapLayers.hybrid;
-                showMapTypeNotification('Satellite + Labels');
-            }
-        }
-        
-        function showMapTypeNotification(text) {
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
-                padding: 15px 30px;
-                border-radius: 25px;
-                font-size: 16px;
-                z-index: 9999;
-                animation: fadeInOut 2s ease;
-            `;
-            notification.textContent = text;
-            document.body.appendChild(notification);
-            
-            // Add animation
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes fadeInOut {
-                    0% { opacity: 0; }
-                    20% { opacity: 1; }
-                    80% { opacity: 1; }
-                    100% { opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-            
-            setTimeout(() => notification.remove(), 2000);
-        }
-        
-        // Drawing functions
-        function toggleDrawing() {
-            if (!currentField) {
-                alert('Please select a field first');
-                return;
-            }
-            
-            if (isDrawing) {
-                stopDrawing();
-            } else {
-                startDrawing();
-            }
-        }
-        
-        function startDrawing() {
-            isDrawing = true;
-            document.getElementById('drawBtn').classList.add('active');
-            document.getElementById('helpText').classList.add('active');
-            
-            // Remove existing boundary if any
-            if (fieldBoundaries[currentField]) {
-                map.removeLayer(fieldBoundaries[currentField]);
-            }
-            
-            drawControl = new L.Draw.Polygon(map, {
-                shapeOptions: {
-                    color: '#34C759',
-                    weight: 3,
-                    fillOpacity: 0.2
-                }
-            });
-            
-            drawControl.enable();
-            
-            map.once('draw:created', function(e) {
-                const layer = e.layer;
-                saveBoundary(layer);
-                stopDrawing();
-            });
-        }
-        
-        function stopDrawing() {
-            isDrawing = false;
-            document.getElementById('drawBtn').classList.remove('active');
-            document.getElementById('helpText').classList.remove('active');
-            
-            if (drawControl) {
-                drawControl.disable();
-                drawControl = null;
-            }
-        }
-        
-        function saveBoundary(layer) {
-            // Save to field
-            fieldBoundaries[currentField] = layer;
-            layer.addTo(map);
-            
-            // Save coordinates to data
-            const coords = layer.getLatLngs()[0].map(ll => ({
-                lat: ll.lat,
-                lng: ll.lng
-            }));
-            
-            if (growers[currentGrower] && growers[currentGrower].fields[currentField]) {
-                growers[currentGrower].fields[currentField].boundary = coords;
-                growers[currentGrower].fields[currentField].area = calculateArea(layer);
-                
-                // Update display
-                updateFieldList();
-                
-                // Zoom to fit the new boundary
-                map.fitBounds(layer.getBounds(), { padding: [50, 50] });
-            }
-        }
-        
-        function calculateArea(layer) {
-            // Calculate area in acres (simplified)
-            const coords = layer.getLatLngs()[0];
-            let area = 0;
-            
-            for (let i = 0; i < coords.length - 1; i++) {
-                area += coords[i].lat * coords[i + 1].lng - coords[i + 1].lat * coords[i].lng;
-            }
-            
-            area = Math.abs(area / 2);
-            // Convert to acres (very rough approximation)
-            area = area * 111000 * 111000 * 0.000247105;
-            
-            return area.toFixed(1);
-        }
-        
-        function dropPin() {
-            if (!currentLocation) {
-                alert('Waiting for GPS location...');
-                return;
-            }
-            
-            if (!currentField) {
-                alert('Please select a field first');
-                return;
-            }
-            
-            const marker = L.marker([currentLocation.lat, currentLocation.lng], {
-                icon: L.divIcon({
-                    html: '<div style="background: #FF9500; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
-                })
-            }).addTo(map);
-            
-            const sampleId = `S${Date.now()}`;
-            marker.bindPopup(`
-                <div style="padding: 10px;">
-                    <strong>Sample ${sampleId}</strong><br>
-                    Field: ${growers[currentGrower].fields[currentField].name}<br>
-                    Date: ${new Date().toLocaleString()}<br>
-                    GPS Accuracy: ±${Math.round(currentLocation.accuracy)}m
-                </div>
-            `);
-            
-            // Save sample point
-            if (!sampleMarkers[currentField]) {
-                sampleMarkers[currentField] = [];
-            }
-            sampleMarkers[currentField].push({
-                id: sampleId,
-                marker: marker,
-                lat: currentLocation.lat,
-                lng: currentLocation.lng,
-                accuracy: currentLocation.accuracy,
-                timestamp: new Date().toISOString()
-            });
-            
-            marker.openPopup();
-        }
-        
-        // Grower management
+        // Grower Management
         function selectGrower() {
             const select = document.getElementById('growerSelect');
-            currentGrower = select.value;
+            currentGrowerId = select.value;
             
-            if (currentGrower) {
+            if (currentGrowerId) {
+                document.getElementById('currentGrower').textContent = growers[currentGrowerId].name;
                 document.getElementById('fieldSection').style.display = 'block';
+                document.getElementById('samplingSection').style.display = 'block';
+                document.getElementById('exportSection').style.display = 'block';
                 updateFieldList();
             } else {
+                document.getElementById('currentGrower').textContent = 'None';
                 document.getElementById('fieldSection').style.display = 'none';
+                document.getElementById('samplingSection').style.display = 'none';
+                document.getElementById('exportSection').style.display = 'none';
+                currentFieldId = null;
             }
         }
         
-        function addNewGrower() {
-            document.getElementById('growerModal').classList.add('active');
+        function showAddGrower() {
+            const name = prompt('Enter grower name:');
+            if (name) {
+                const id = 'grower_' + Date.now();
+                growers[id] = {
+                    id: id,
+                    name: name,
+                    fields: {},
+                    created: new Date().toISOString()
+                };
+                updateGrowerSelect();
+                document.getElementById('growerSelect').value = id;
+                selectGrower();
+                saveData();
+                showToast(`Grower "${name}" added`);
+            }
         }
         
-        function closeGrowerModal() {
-            document.getElementById('growerModal').classList.remove('active');
-            // Clear form
-            document.getElementById('growerName').value = '';
-            document.getElementById('growerContact').value = '';
-            document.getElementById('growerPhone').value = '';
-        }
-        
-        function saveGrower() {
-            const name = document.getElementById('growerName').value.trim();
-            if (!name) {
-                alert('Please enter a grower name');
+        function editGrower() {
+            if (!currentGrowerId) {
+                alert('Please select a grower first');
                 return;
             }
-            
-            const growerId = 'grower_' + Date.now();
-            growers[growerId] = {
-                id: growerId,
-                name: name,
-                contact: document.getElementById('growerContact').value,
-                phone: document.getElementById('growerPhone').value,
-                fields: {},
-                created: new Date().toISOString()
-            };
-            
-            updateGrowerSelect();
-            document.getElementById('growerSelect').value = growerId;
-            selectGrower();
-            closeGrowerModal();
-            
-            saveToLocalStorage();
+            const newName = prompt('Edit grower name:', growers[currentGrowerId].name);
+            if (newName) {
+                growers[currentGrowerId].name = newName;
+                updateGrowerSelect();
+                selectGrower();
+                saveData();
+                showToast('Grower updated');
+            }
+        }
+        
+        function deleteGrower() {
+            if (!currentGrowerId) {
+                alert('Please select a grower first');
+                return;
+            }
+            if (confirm(`Delete grower "${growers[currentGrowerId].name}" and all fields?`)) {
+                // Remove all field boundaries from map
+                const fields = growers[currentGrowerId].fields;
+                for (let fieldId in fields) {
+                    if (fieldBoundaries[fieldId]) {
+                        map.removeLayer(fieldBoundaries[fieldId]);
+                        delete fieldBoundaries[fieldId];
+                    }
+                }
+                
+                delete growers[currentGrowerId];
+                currentGrowerId = null;
+                currentFieldId = null;
+                updateGrowerSelect();
+                selectGrower();
+                saveData();
+                showToast('Grower deleted');
+            }
         }
         
         function updateGrowerSelect() {
             const select = document.getElementById('growerSelect');
-            select.innerHTML = '<option value="">Select Grower...</option>';
+            select.innerHTML = '<option value="">-- Select or Add New --</option>';
             
             for (let id in growers) {
                 const option = document.createElement('option');
@@ -1141,87 +672,54 @@
             }
         }
         
-        // Field management
-        function showFieldModal() {
-            if (!currentGrower) {
+        // Field Management
+        function showAddField() {
+            if (!currentGrowerId) {
                 alert('Please select a grower first');
                 return;
             }
-            document.getElementById('fieldModal').classList.add('active');
-        }
-        
-        function closeFieldModal() {
-            document.getElementById('fieldModal').classList.remove('active');
-            // Clear form
-            document.getElementById('fieldName').value = '';
-            document.getElementById('fieldAcres').value = '';
-            document.getElementById('fieldCrop').value = '';
-        }
-        
-        function saveField() {
-            const name = document.getElementById('fieldName').value.trim();
-            if (!name) {
-                alert('Please enter a field name');
-                return;
+            
+            const name = prompt('Enter field name (e.g., North Block, Vineyard A):');
+            if (name) {
+                const acres = prompt('Enter approximate acres (optional):');
+                const id = 'field_' + Date.now();
+                
+                growers[currentGrowerId].fields[id] = {
+                    id: id,
+                    name: name,
+                    acres: acres || '',
+                    boundary: null,
+                    samples: [],
+                    created: new Date().toISOString()
+                };
+                
+                updateFieldList();
+                selectField(id);
+                saveData();
+                showToast(`Field "${name}" added`);
             }
-            
-            const fieldId = 'field_' + Date.now();
-            const field = {
-                id: fieldId,
-                name: name,
-                acres: document.getElementById('fieldAcres').value,
-                crop: document.getElementById('fieldCrop').value,
-                boundary: null,
-                samples: [],
-                created: new Date().toISOString()
-            };
-            
-            if (!growers[currentGrower].fields) {
-                growers[currentGrower].fields = {};
-            }
-            
-            growers[currentGrower].fields[fieldId] = field;
-            
-            updateFieldList();
-            selectField(fieldId);
-            closeFieldModal();
-            
-            saveToLocalStorage();
         }
         
         function updateFieldList() {
             const container = document.getElementById('fieldList');
-            
-            if (!currentGrower || !growers[currentGrower]) {
-                container.innerHTML = '<div class="no-fields">No grower selected</div>';
-                return;
-            }
-            
-            const fields = growers[currentGrower].fields || {};
+            const fields = growers[currentGrowerId]?.fields || {};
             const fieldIds = Object.keys(fields);
             
             if (fieldIds.length === 0) {
-                container.innerHTML = '<div class="no-fields">No fields yet. Click "+ Add Field" to create one.</div>';
+                container.innerHTML = '<div class="no-data">No fields added yet</div>';
                 return;
             }
             
             container.innerHTML = fieldIds.map(id => {
                 const field = fields[id];
-                const isActive = currentField === id;
-                const hasBoundary = field.boundary && field.boundary.length > 0;
-                
+                const isActive = currentFieldId === id;
                 return `
                     <div class="field-item ${isActive ? 'active' : ''}" onclick="selectField('${id}')">
-                        <div class="field-info">
-                            <div class="field-name">${field.name}</div>
-                            <div class="field-details">
-                                ${field.acres ? field.acres + ' acres' : 'No acreage set'}
-                                ${field.crop ? ' • ' + field.crop : ''}
-                                ${hasBoundary ? ' • ✓ Boundary' : ''}
-                            </div>
-                        </div>
-                        <div class="field-actions">
-                            ${hasBoundary ? `<button class="field-action-btn" onclick="zoomToField('${id}'); event.stopPropagation();" title="Zoom to field">🔍</button>` : ''}
+                        <div class="field-name">${field.name}</div>
+                        <div class="field-details">
+                            ${field.acres ? field.acres + ' acres' : 'No acreage set'}
+                            ${field.boundary ? ' • Boundary set' : ''}
+                            ${field.samples?.length > 0 ? ' • ' + field.samples.length + ' samples' : ''}
                         </div>
                     </div>
                 `;
@@ -1229,319 +727,674 @@
         }
         
         function selectField(fieldId) {
-            currentField = fieldId;
+            currentFieldId = fieldId;
+            const field = growers[currentGrowerId].fields[fieldId];
+            
+            document.getElementById('currentField').textContent = field.name;
+            document.getElementById('activeFieldName').textContent = field.name;
+            
             updateFieldList();
             
-            // Show boundary if exists
+            // Hide other boundaries, show this one
+            for (let id in fieldBoundaries) {
+                if (fieldBoundaries[id]) {
+                    if (id === fieldId) {
+                        fieldBoundaries[id].addTo(map);
+                    } else {
+                        map.removeLayer(fieldBoundaries[id]);
+                    }
+                }
+            }
+            
+            // Zoom to field if it has a boundary
+            if (fieldBoundaries[fieldId]) {
+                map.fitBounds(fieldBoundaries[fieldId].getBounds(), { padding: [50, 50] });
+            }
+        }
+        
+        function drawFieldBoundary() {
+            if (!currentFieldId) {
+                alert('Please select a field first');
+                return;
+            }
+            
+            if (isDrawing) {
+                // Cancel drawing
+                if (drawControl) drawControl.disable();
+                isDrawing = false;
+                document.getElementById('drawFieldBtn').textContent = 'Draw Field Boundary';
+                document.getElementById('drawFieldBtn').classList.remove('btn-danger');
+                document.getElementById('drawFieldBtn').classList.add('btn-success');
+                return;
+            }
+            
+            isDrawing = true;
+            document.getElementById('drawFieldBtn').textContent = 'Cancel Drawing';
+            document.getElementById('drawFieldBtn').classList.remove('btn-success');
+            document.getElementById('drawFieldBtn').classList.add('btn-danger');
+            
+            drawControl = new L.Draw.Polygon(map, {
+                shapeOptions: {
+                    color: '#667eea',
+                    weight: 4,  // Thicker boundary lines
+                    fillOpacity: 0.15,
+                    dashArray: '10, 5'  // Dashed line for visibility
+                }
+            });
+            
+            drawControl.enable();
+            
+            map.once('draw:created', function(e) {
+                const layer = e.layer;
+                
+                // Remove old boundary if exists
+                if (fieldBoundaries[currentFieldId]) {
+                    map.removeLayer(fieldBoundaries[currentFieldId]);
+                }
+                
+                // Save new boundary
+                fieldBoundaries[currentFieldId] = layer;
+                layer.addTo(map);
+                
+                // Save coordinates to field data
+                const coords = layer.getLatLngs()[0].map(ll => ({
+                    lat: ll.lat,
+                    lng: ll.lng
+                }));
+                growers[currentGrowerId].fields[currentFieldId].boundary = coords;
+                
+                isDrawing = false;
+                document.getElementById('drawFieldBtn').textContent = 'Draw Field Boundary';
+                document.getElementById('drawFieldBtn').classList.remove('btn-danger');
+                document.getElementById('drawFieldBtn').classList.add('btn-success');
+                
+                updateFieldList();
+                saveData();
+                showToast('Field boundary saved');
+            });
+        }
+        
+        function zoomToField() {
+            if (currentFieldId && fieldBoundaries[currentFieldId]) {
+                map.fitBounds(fieldBoundaries[currentFieldId].getBounds(), { padding: [50, 50] });
+            } else {
+                showToast('No field boundary to zoom to');
+            }
+        }
+        
+        // Sampling
+        function startSampling() {
+            if (!currentFieldId) {
+                alert('Please select a field first');
+                return;
+            }
+            
+            isSampling = !isSampling;
+            const btn = document.querySelector('.btn-warning');
+            
+            if (isSampling) {
+                btn.textContent = 'Stop Sampling';
+                btn.classList.add('btn-danger');
+                btn.classList.remove('btn-warning');
+                document.getElementById('dropPinBtn').classList.add('active');
+                showToast('Sampling mode active - Click 🎯 to drop pins');
+            } else {
+                btn.textContent = 'Start Sampling';
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-warning');
+                document.getElementById('dropPinBtn').classList.remove('active');
+                showToast('Sampling mode stopped');
+            }
+        }
+        
+        function dropPin() {
+            if (!isSampling) {
+                showToast('Start sampling mode first');
+                return;
+            }
+            
+            if (!currentFieldId) {
+                showToast('Select a field first');
+                return;
+            }
+            
+            if (!currentLocation) {
+                // Manual placement
+                showToast('Click on map to place pin');
+                map.once('click', function(e) {
+                    placeSamplePin(e.latlng.lat, e.latlng.lng, true);
+                });
+                return;
+            }
+            
+            placeSamplePin(currentLocation.lat, currentLocation.lng, false);
+        }
+        
+        function placeSamplePin(lat, lng, isManual) {
+            // Detect soil type if soil layer is loaded
+            let soilType = '';
+            let soilInfo = null;
+            
+            if (soilLayer) {
+                const point = L.latLng(lat, lng);
+                let foundSoil = false;
+                
+                soilLayer.eachLayer(function(layer) {
+                    // More robust point-in-polygon check
+                    if (!foundSoil && layer.getBounds && layer.getBounds().contains(point)) {
+                        // Do a more precise check if possible
+                        if (layer.soilData) {
+                            soilType = layer.soilData.MUSYM || '';
+                            soilInfo = getSoilInfo(soilType);
+                            foundSoil = true;
+                        }
+                    }
+                });
+            }
+            
+            const field = growers[currentGrowerId].fields[currentFieldId];
+            const sampleNum = (field.samples?.length || 0) + 1;
+            
+            const marker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    html: `<div style="background: #ed8936; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${sampleNum}</div>`,
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 13]
+                })
+            }).addTo(map);
+            
+            let popupContent = '<div style="min-width: 180px;">';
+            popupContent += `<h4 style="margin: 0 0 5px 0; color: #ed8936;">Sample #${sampleNum}</h4>`;
+            popupContent += `<b>Field:</b> ${field.name}<br>`;
+            if (soilType) {
+                popupContent += `<b>Soil Unit:</b> ${soilType}<br>`;
+                if (soilInfo) {
+                    popupContent += `<b>Series:</b> ${soilInfo.series}<br>`;
+                    popupContent += `<b>Texture:</b> ${soilInfo.texture}<br>`;
+                }
+            }
+            popupContent += `<b>GPS:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>`;
+            popupContent += `<b>Time:</b> ${new Date().toLocaleString()}<br>`;
+            if (isManual) popupContent += `<i style="color: #666;">Manual placement</i>`;
+            popupContent += '</div>';
+            
+            marker.bindPopup(popupContent);
+            
+            // Save sample data
+            const sample = {
+                id: 'sample_' + Date.now(),
+                number: sampleNum,
+                lat: lat,
+                lng: lng,
+                soilType: soilType,
+                soilInfo: soilInfo,
+                timestamp: new Date().toISOString(),
+                isManual: isManual
+            };
+            
+            if (!field.samples) field.samples = [];
+            field.samples.push(sample);
+            
+            sampleMarkers.push({ marker: marker, fieldId: currentFieldId, sample: sample });
+            
+            document.getElementById('sampleCount').textContent = field.samples.length;
+            
+            saveData();
+            showToast(`Sample #${sampleNum} placed${soilType ? ' - Soil: ' + soilType : ''}`);
+        }
+        
+        // Soil Data Management
+        function handleSoilUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('soilStatus').textContent = 'Loading...';
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const content = event.target.result;
+                const fileName = file.name.toLowerCase();
+                
+                if (fileName.endsWith('.json') || fileName.endsWith('.geojson')) {
+                    loadSoilGeoJSON(content);
+                } else if (fileName.endsWith('.kml')) {
+                    loadSoilKML(content);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function loadSoilGeoJSON(jsonString) {
+            try {
+                const geoData = JSON.parse(jsonString);
+                soilData = geoData;
+                
+                if (soilLayer) {
+                    map.removeLayer(soilLayer);
+                }
+                
+                // Create color map for different soil types
+                const colorMap = {};
+                const baseColors = ['#8B4513', '#CD853F', '#DEB887', '#F4A460', '#D2691E', '#BC8F8F', '#DAA520', '#B8860B'];
+                let colorIndex = 0;
+                
+                // Assign colors to each unique MUSYM
+                geoData.features.forEach(feature => {
+                    const musym = feature.properties.MUSYM;
+                    if (musym && !colorMap[musym]) {
+                        colorMap[musym] = baseColors[colorIndex % baseColors.length];
+                        colorIndex++;
+                    }
+                });
+                
+                soilLayer = L.geoJSON(geoData, {
+                    style: function(feature) {
+                        const musym = feature.properties.MUSYM || '';
+                        return {
+                            fillColor: colorMap[musym] || '#BC8F8F',
+                            weight: 3,  // Thicker borders
+                            opacity: 1,
+                            color: '#000',  // Black borders for visibility
+                            fillOpacity: 0.4,
+                            dashArray: ''
+                        };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        layer.soilData = feature.properties;
+                        
+                        // Build comprehensive popup with edit capability
+                        let popup = '<div style="min-width: 200px; font-size: 13px;">';
+                        popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">Soil Information</h4>';
+                        
+                        if (feature.properties.MUSYM) {
+                            popup += `<b>Map Unit Symbol:</b> ${feature.properties.MUSYM}<br>`;
+                        }
+                        if (feature.properties.MUKEY) {
+                            popup += `<b>MUKEY:</b> ${feature.properties.MUKEY}<br>`;
+                        }
+                        if (feature.properties.AREASYMBOL) {
+                            popup += `<b>Survey Area:</b> ${feature.properties.AREASYMBOL}<br>`;
+                        }
+                        
+                        // Get soil info from our database
+                        const info = getSoilInfo(feature.properties.MUSYM);
+                        if (info) {
+                            popup += `<hr style="margin: 8px 0;">`;
+                            if (info.series && !info.series.includes('Map Unit')) {
+                                popup += `<b>Soil Series:</b> ${info.series}<br>`;
+                                popup += `<b>Texture:</b> ${info.texture}<br>`;
+                                popup += `<b>Drainage:</b> ${info.drainage}<br>`;
+                                popup += `<b>Slope:</b> ${info.slope}<br>`;
+                                if (info.ph) popup += `<b>pH Range:</b> ${info.ph}<br>`;
+                                if (info.notes) popup += `<b>Notes:</b> <i>${info.notes}</i><br>`;
+                            } else {
+                                popup += `<i>Soil series not identified for ${feature.properties.MUSYM}</i><br>`;
+                                popup += `<small>Check Web Soil Survey for interpretation</small><br>`;
+                            }
+                        }
+                        
+                        popup += `<hr style="margin: 8px 0;">`;
+                        popup += `<small><a href="https://websoilsurvey.nrcs.usda.gov/" target="_blank">Look up on Web Soil Survey →</a></small>`;
+                        popup += '</div>';
+                        
+                        layer.bindPopup(popup);
+                    }
+                });
+                
+                // Add to map if toggle is on, otherwise just store it
+                if (document.getElementById('soilToggle').checked) {
+                    soilLayer.addTo(map);
+                }
+                
+                // Auto-zoom to loaded data
+                const bounds = soilLayer.getBounds();
+                map.fitBounds(bounds, { padding: [50, 50] });
+                
+                // Count features and soil types
+                let featureCount = 0;
+                const uniqueSoilTypes = new Set();
+                geoData.features.forEach(f => {
+                    featureCount++;
+                    if (f.properties.MUSYM) {
+                        uniqueSoilTypes.add(f.properties.MUSYM);
+                    }
+                });
+                
+                document.getElementById('soilStatus').textContent = `✓ ${featureCount} polygons, ${uniqueSoilTypes.size} soil types`;
+                
+                // Show notification with soil types found
+                const soilTypesList = Array.from(uniqueSoilTypes).join(', ');
+                showToast(`Loaded ${featureCount} soil polygons: ${soilTypesList}`);
+                
+                // Auto-enable the soil layer toggle so user can see it loaded
+                if (!document.getElementById('soilToggle').checked) {
+                    document.getElementById('soilToggle').checked = true;
+                    soilLayer.addTo(map);
+                }
+                
+            } catch (error) {
+                document.getElementById('soilStatus').textContent = 'Error loading file';
+                console.error(error);
+                showToast('Error loading soil data');
+            }
+        }
+        
+        function loadSoilKML(kmlContent) {
+            // Similar to GeoJSON but for KML
+            try {
+                if (soilLayer) {
+                    map.removeLayer(soilLayer);
+                }
+                
+                soilLayer = omnivore.kml.parse(kmlContent);
+                
+                if (document.getElementById('soilToggle').checked) {
+                    soilLayer.addTo(map);
+                }
+                
+                document.getElementById('soilStatus').textContent = '✓ KML loaded';
+                showToast('KML data loaded');
+            } catch (error) {
+                document.getElementById('soilStatus').textContent = 'Error loading KML';
+            }
+        }
+        
+        function getSoilInfo(musym) {
+            // IMPORTANT: MUSYM codes are specific to each county/survey area
+            // The series names below should be verified with Web Soil Survey for your specific area
+            // To get correct names:
+            // 1. Go to Web Soil Survey
+            // 2. Look up your area
+            // 3. Check "Soil Map" tab
+            // 4. Click "Map Unit Legend" to see MUSYM to series mapping
+            
+            const soilData = {
+                // Illinois soils (Union County - IL181) - Alto Vineyard
+                // Corrected based on user feedback: These are Menfro series, not Darwin
+                '79B': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '0-2% slopes',
+                    ph: '5.5-7.3',
+                    notes: 'Deep, well-drained loess soils'
+                },
+                '79C2': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '2-5% slopes, eroded',
+                    ph: '5.5-7.3',
+                    notes: 'Good for vineyards with proper erosion control'
+                },
+                '79D2': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '5-10% slopes, eroded',
+                    ph: '5.5-7.3',
+                    notes: 'Steeper slopes, manage erosion'
+                },
+                '79D3': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '5-10% slopes, severely eroded',
+                    ph: '5.5-7.3',
+                    notes: 'Severely eroded, may need restoration'
+                },
+                '79E2': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '10-15% slopes, eroded',
+                    ph: '5.5-7.3',
+                    notes: 'Steep slopes, erosion concern'
+                },
+                
+                // Missouri soils (Perry County - MO201) - KFV
+                // Corrected based on user feedback: These are Memphis series
+                '90601': {
+                    series: 'Memphis silt loam',
+                    texture: 'Silt loam',
+                    drainage: 'Well drained',
+                    slope: '0-2% slopes',
+                    ph: '5.1-6.5',
+                    notes: 'Deep, well-drained loess soils, excellent for vineyards'
+                },
+                '90021': {
+                    series: 'Memphis silt loam',
+                    texture: 'Silt loam',
+                    drainage: 'Well drained',
+                    slope: '2-5% slopes',
+                    ph: '5.1-6.5',
+                    notes: 'Good agricultural soil, moderate slope'
+                },
+                '90017': {
+                    series: 'Memphis silt loam',
+                    texture: 'Silt loam',
+                    drainage: 'Well drained',
+                    slope: '0-2% slopes',
+                    ph: '5.1-6.5',
+                    notes: 'Prime farmland when not flooded'
+                }
+            };
+            
+            // Return the soil info if found, otherwise return a generic message
+            if (soilData[musym]) {
+                return soilData[musym];
+            } else {
+                // For unknown MUSYM codes, return basic info
+                return {
+                    series: `Map Unit ${musym}`,
+                    texture: 'See Web Soil Survey',
+                    drainage: 'See Web Soil Survey',
+                    slope: 'Varies',
+                    notes: 'Check SSURGO data tables or Web Soil Survey for detailed interpretation'
+                };
+            }
+        }
+        
+        // Layer Toggles
+        function toggleSoilLayer() {
+            if (!soilLayer) {
+                showToast('No soil data loaded');
+                document.getElementById('soilToggle').checked = false;
+                return;
+            }
+            
+            if (document.getElementById('soilToggle').checked) {
+                soilLayer.addTo(map);
+            } else {
+                map.removeLayer(soilLayer);
+            }
+        }
+        
+        function toggleBoundaries() {
+            const show = document.getElementById('boundaryToggle').checked;
+            for (let id in fieldBoundaries) {
+                if (fieldBoundaries[id]) {
+                    if (show && (id === currentFieldId || !currentFieldId)) {
+                        fieldBoundaries[id].addTo(map);
+                    } else {
+                        map.removeLayer(fieldBoundaries[id]);
+                    }
+                }
+            }
+        }
+        
+        function toggleSamples() {
+            const show = document.getElementById('sampleToggle').checked;
+            sampleMarkers.forEach(item => {
+                if (show) {
+                    item.marker.addTo(map);
+                } else {
+                    map.removeLayer(item.marker);
+                }
+            });
+        }
+        
+        function toggleMapType() {
+            const useSatellite = document.getElementById('satelliteToggle').checked;
+            if (useSatellite) {
+                map.removeLayer(window.mapLayers.streets);
+                map.addLayer(window.mapLayers.satellite);
+            } else {
+                map.removeLayer(window.mapLayers.satellite);
+                map.addLayer(window.mapLayers.streets);
+            }
+        }
+        
+        // Export Functions
+        function exportCSV() {
+            if (!currentGrowerId) {
+                alert('No grower selected');
+                return;
+            }
+            
+            let csv = 'Grower,Field,Sample_Number,Latitude,Longitude,Soil_Unit,Soil_Series,Date_Time\n';
+            
+            const grower = growers[currentGrowerId];
+            for (let fieldId in grower.fields) {
+                const field = grower.fields[fieldId];
+                if (field.samples) {
+                    field.samples.forEach(sample => {
+                        csv += `"${grower.name}",`;
+                        csv += `"${field.name}",`;
+                        csv += `${sample.number},`;
+                        csv += `${sample.lat.toFixed(6)},`;
+                        csv += `${sample.lng.toFixed(6)},`;
+                        csv += `${sample.soilType || ''},`;
+                        csv += `"${sample.soilInfo?.series || ''}",`;
+                        csv += `"${new Date(sample.timestamp).toLocaleString()}"\n`;
+                    });
+                }
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `samples_${grower.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            showToast('CSV exported successfully');
+        }
+        
+        // Utility Functions
+        function centerOnGPS() {
+            if (currentLocation) {
+                map.setView([currentLocation.lat, currentLocation.lng], 18);
+            } else {
+                showToast('GPS not available');
+            }
+        }
+        
+        function zoomIn() {
+            map.zoomIn();
+        }
+        
+        function zoomOut() {
+            map.zoomOut();
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Data Persistence
+        function saveData() {
+            localStorage.setItem('kasFieldData', JSON.stringify({
+                growers: growers,
+                currentGrowerId: currentGrowerId,
+                currentFieldId: currentFieldId
+            }));
+        }
+        
+        function loadSavedData() {
+            const saved = localStorage.getItem('kasFieldData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                growers = data.growers || {};
+                
+                // Restore field boundaries
+                for (let growerId in growers) {
+                    const grower = growers[growerId];
+                    for (let fieldId in grower.fields) {
+                        const field = grower.fields[fieldId];
+                        if (field.boundary) {
+                            const coords = field.boundary.map(c => [c.lat, c.lng]);
+                            const polygon = L.polygon(coords, {
+                                color: '#667eea',
+                                weight: 4,
+                                fillOpacity: 0.15,
+                                dashArray: '10, 5'
+                            });
+                            fieldBoundaries[fieldId] = polygon;
+                        }
+                    }
+                }
+                
+                updateGrowerSelect();
+                
+                // Restore selection if they exist
+                if (data.currentGrowerId && growers[data.currentGrowerId]) {
+                    document.getElementById('growerSelect').value = data.currentGrowerId;
+                    selectGrower();
+                    
+                    if (data.currentFieldId && growers[data.currentGrowerId].fields[data.currentFieldId]) {
+                        selectField(data.currentFieldId);
+                    }
+                }
+            }
+        }
+        
+        function saveToLocal() {
+            saveData();
+            showToast('Data saved to browser');
+        }
+        
+        function clearAllData() {
+            if (!confirm('This will clear ALL growers, fields, and samples. Are you sure?')) {
+                return;
+            }
+            
+            // Clear from map
             for (let id in fieldBoundaries) {
                 if (fieldBoundaries[id]) {
                     map.removeLayer(fieldBoundaries[id]);
                 }
             }
+            fieldBoundaries = {};
             
-            if (fieldBoundaries[fieldId]) {
-                fieldBoundaries[fieldId].addTo(map);
-            }
-            
-            // Show sample points for this field
-            for (let id in sampleMarkers) {
-                if (sampleMarkers[id]) {
-                    sampleMarkers[id].forEach(s => {
-                        if (id === fieldId) {
-                            s.marker.addTo(map);
-                        } else {
-                            map.removeLayer(s.marker);
-                        }
-                    });
-                }
-            }
-        }
-        
-        function zoomToField(fieldId) {
-            event.stopPropagation();
-            
-            if (fieldBoundaries[fieldId]) {
-                map.fitBounds(fieldBoundaries[fieldId].getBounds(), { 
-                    padding: [50, 50],
-                    maxZoom: 17 
-                });
-            } else {
-                const field = growers[currentGrower].fields[fieldId];
-                if (field && field.boundary && field.boundary.length > 0) {
-                    // Recreate boundary from saved data
-                    const latlngs = field.boundary.map(coord => [coord.lat, coord.lng]);
-                    const polygon = L.polygon(latlngs, {
-                        color: '#34C759',
-                        weight: 3,
-                        fillOpacity: 0.2
-                    });
-                    fieldBoundaries[fieldId] = polygon;
-                    polygon.addTo(map);
-                    map.fitBounds(polygon.getBounds(), { 
-                        padding: [50, 50],
-                        maxZoom: 17 
-                    });
-                }
-            }
-        }
-        
-        // Data persistence
-        function saveToLocalStorage() {
-            localStorage.setItem('fieldMapperData', JSON.stringify({
-                growers: growers,
-                lastUpdated: new Date().toISOString()
-            }));
-        }
-        
-        function loadSavedData() {
-            const saved = localStorage.getItem('fieldMapperData');
-            if (saved) {
-                try {
-                    const data = JSON.parse(saved);
-                    growers = data.growers || {};
-                    updateGrowerSelect();
-                    
-                    // Restore field boundaries on map
-                    for (let growerId in growers) {
-                        const fields = growers[growerId].fields || {};
-                        for (let fieldId in fields) {
-                            const field = fields[fieldId];
-                            if (field.boundary && field.boundary.length > 0) {
-                                const latlngs = field.boundary.map(coord => [coord.lat, coord.lng]);
-                                const polygon = L.polygon(latlngs, {
-                                    color: '#34C759',
-                                    weight: 3,
-                                    fillOpacity: 0.2
-                                });
-                                fieldBoundaries[fieldId] = polygon;
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.error('Error loading saved data:', e);
-                }
-            }
-        }
-        
-        function saveAllData() {
-            saveToLocalStorage();
-            alert('All data saved successfully!');
-        }
-        
-        function togglePanel() {
-            // Future: implement panel collapse/expand
-        }
-        
-        // Initialize when page loads
-        window.addEventListener('load', () => {
-            initMap();
-        });
-        
-        // Remove references to removed functions
-        function toggleBoundaries() {
-            const checkbox = document.getElementById('boundToggle');
-            Object.values(fieldBoundaries).forEach(boundary => {
-                if (checkbox.checked && boundary) {
-                    boundary.addTo(map);
-                } else if (boundary) {
-                    map.removeLayer(boundary);
-                }
+            sampleMarkers.forEach(item => {
+                map.removeLayer(item.marker);
             });
+            sampleMarkers = [];
+            
+            // Clear data
+            growers = {};
+            currentGrowerId = null;
+            currentFieldId = null;
+            
+            // Clear UI
+            updateGrowerSelect();
+            selectGrower();
+            
+            // Clear storage
+            localStorage.removeItem('kasFieldData');
+            
+            showToast('All data cleared');
         }
         
-        function toggleSamples() {
-            const checkbox = document.getElementById('sampleToggle');
-            Object.values(sampleMarkers).forEach(fieldSamples => {
-                if (fieldSamples && Array.isArray(fieldSamples)) {
-                    fieldSamples.forEach(sample => {
-                        if (sample && sample.marker) {
-                            if (checkbox.checked) {
-                                sample.marker.addTo(map);
-                            } else {
-                                map.removeLayer(sample.marker);
-                            }
-                        }
-                    });
-                }
-            });
-        }
-        
-        // Modified dropPin function to include soil data
-        function dropPin() {
-            if (!currentLocation) {
-                alert('Waiting for GPS location...');
-                return;
-            }
-            
-            if (!currentField) {
-                alert('Please select a field first');
-                return;
-            }
-            
-            // Get soil type at this location
-            const soilInfo = getSoilTypeAtLocation(currentLocation.lat, currentLocation.lng);
-            
-            const marker = L.marker([currentLocation.lat, currentLocation.lng], {
-                icon: L.divIcon({
-                    html: '<div style="background: #FF9500; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
-                })
-            }).addTo(map);
-            
-            const sampleId = `S${Date.now()}`;
-            const timestamp = new Date();
-            
-            // Create popup with soil info
-            let popupContent = `
-                <div style="padding: 10px; min-width: 200px;">
-                    <strong>Sample ${sampleId}</strong><br>
-                    <strong>Field:</strong> ${growers[currentGrower].fields[currentField].name}<br>
-                    <strong>Date:</strong> ${timestamp.toLocaleString()}<br>
-                    <strong>GPS Accuracy:</strong> ±${Math.round(currentLocation.accuracy)}m<br>
-            `;
-            
-            if (soilInfo) {
-                popupContent += `
-                    <hr style="margin: 8px 0;">
-                    <strong>Soil Type:</strong> ${soilInfo.musym}<br>
-                    <strong>Series:</strong> ${soilInfo.muname}<br>
-                    <strong>Texture:</strong> ${soilInfo.texture || 'Not specified'}<br>
-                `;
-            }
-            
-            popupContent += `
-                    <hr style="margin: 8px 0;">
-                    <button onclick="addSampleNotes('${sampleId}')" style="padding: 5px 10px; background: #007AFF; color: white; border: none; border-radius: 5px;">Add Notes</button>
-                </div>
-            `;
-            
-            marker.bindPopup(popupContent);
-            
-            // Save sample point with soil data
-            if (!sampleMarkers[currentField]) {
-                sampleMarkers[currentField] = [];
-            }
-            
-            const sampleData = {
-                id: sampleId,
-                marker: marker,
-                lat: currentLocation.lat,
-                lng: currentLocation.lng,
-                accuracy: currentLocation.accuracy,
-                timestamp: timestamp.toISOString(),
-                grower: growers[currentGrower].name,
-                field: growers[currentGrower].fields[currentField].name,
-                soilType: soilInfo ? soilInfo.musym : null,
-                soilSeries: soilInfo ? soilInfo.muname : null,
-                soilTexture: soilInfo ? soilInfo.texture : null,
-                notes: ''
-            };
-            
-            sampleMarkers[currentField].push(sampleData);
-            
-            // Save to field data
-            if (!growers[currentGrower].fields[currentField].samples) {
-                growers[currentGrower].fields[currentField].samples = [];
-            }
-            growers[currentGrower].fields[currentField].samples.push(sampleData);
-            
-            marker.openPopup();
-            
-            // Auto-save
-            saveToLocalStorage();
-        }
-        
-        // Add notes to sample
-        function addSampleNotes(sampleId) {
-            const notes = prompt('Enter notes for this sample:');
-            if (notes) {
-                // Find and update the sample
-                Object.values(sampleMarkers).forEach(fieldSamples => {
-                    const sample = fieldSamples.find(s => s.id === sampleId);
-                    if (sample) {
-                        sample.notes = notes;
-                        saveToLocalStorage();
-                        alert('Notes saved!');
-                    }
-                });
-            }
-        }
-        
-        // Simple Soil Layer Toggle
-        function toggleSoilLayer() {
-            const checkbox = document.getElementById('soilToggle');
-            if (checkbox.checked) {
-                console.log('Loading soil data...');
-                showSimpleSoilDemo();
-            } else {
-                if (soilLayer) {
-                    map.removeLayer(soilLayer);
-                    document.getElementById('soilLegend').style.display = 'none';
-                }
-            }
-        }
-        
-        // Create simple demo soil layer that definitely works
-        function showSimpleSoilDemo() {
-            // Remove existing layer if any
-            if (soilLayer) {
-                map.removeLayer(soilLayer);
-            }
-            
-            // Get current map center
-            const center = map.getCenter();
-            
-            // Create visible polygons around current view
-            const polygon1 = L.polygon([
-                [center.lat - 0.001, center.lng - 0.002],
-                [center.lat + 0.001, center.lng - 0.002],
-                [center.lat + 0.001, center.lng],
-                [center.lat - 0.001, center.lng]
-            ], {
-                color: 'red',
-                fillColor: '#f03',
-                fillOpacity: 0.3,
-                weight: 2
-            }).bindPopup('<b>Soil Type A</b><br>Clay Loam<br>pH: 6.5-7.0');
-            
-            const polygon2 = L.polygon([
-                [center.lat - 0.001, center.lng],
-                [center.lat + 0.001, center.lng],
-                [center.lat + 0.001, center.lng + 0.002],
-                [center.lat - 0.001, center.lng + 0.002]
-            ], {
-                color: 'blue',
-                fillColor: '#30f',
-                fillOpacity: 0.3,
-                weight: 2
-            }).bindPopup('<b>Soil Type B</b><br>Silt Loam<br>pH: 6.0-6.5');
-            
-            // Create layer group
-            soilLayer = L.layerGroup([polygon1, polygon2]);
-            soilLayer.addTo(map);
-            
-            // Show simple legend
-            const legend = document.getElementById('soilLegend');
-            if (legend) {
-                legend.style.display = 'block';
-                legend.innerHTML = `
-                    <h4>Soil Types</h4>
-                    <div><span style="background: #f03; padding: 2px 10px;">A</span> Clay Loam</div>
-                    <div><span style="background: #30f; padding: 2px 10px;">B</span> Silt Loam</div>
-                `;
-            }
-            
-            alert('Soil layer added! Look for red and blue polygons on the map.');
-        }
-        
-        // Prevent iOS bounce scrolling
-        document.addEventListener('touchmove', function(e) {
-            if (e.target.closest('.main-panel') || e.target.closest('.modal')) {
-                return; // Allow scrolling in panels
-            }
-            e.preventDefault();
-        }, { passive: false });
+        // Initialize on load
+        window.addEventListener('load', initMap);
     </script>
 </body>
 </html>
