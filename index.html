@@ -253,6 +253,8 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             z-index: 1000;
             font-size: 12px;
+            max-width: calc(100vw - 20px);
+            overflow-x: auto;
         }
         
         .status-item {
@@ -383,6 +385,70 @@
             color: #999;
             font-size: 14px;
         }
+        
+        /* Mobile Responsive Adjustments */
+        @media screen and (max-width: 768px) {
+            .control-panel {
+                width: 280px;
+                max-width: 85vw;
+            }
+            
+            .control-panel.collapsed {
+                width: auto;
+            }
+            
+            .layer-controls {
+                right: 10px;
+                top: 60px;
+                min-width: 150px;
+            }
+            
+            .layer-controls.collapsed {
+                min-width: auto;
+            }
+            
+            .status-bar {
+                font-size: 10px;
+                padding: 8px 10px;
+                max-width: calc(100vw - 20px);
+            }
+            
+            .status-item {
+                display: block;
+                margin-right: 0;
+                margin-bottom: 2px;
+            }
+            
+            .toolbar {
+                bottom: 10px;
+                padding: 8px 12px;
+                gap: 10px;
+            }
+            
+            .tool-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+            
+            .field-list {
+                max-height: 150px;
+            }
+        }
+        
+        /* Collapsed panel styles */
+        .control-panel.collapsed #mainPanelContent {
+            display: none;
+        }
+        
+        .control-panel.collapsed {
+            width: auto;
+            min-width: auto;
+        }
+        
+        .layer-controls.collapsed #layerContent {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -392,60 +458,67 @@
     <div class="toast" id="toast"></div>
     
     <!-- Main Control Panel -->
-    <div class="control-panel">
-        <div class="panel-header">
-            KAS Field Sampler
+    <div class="control-panel" id="mainPanel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>KAS Field Sampler</span>
+            <button onclick="toggleMainPanel()" style="background: none; border: none; cursor: pointer; font-size: 20px; color: white; padding: 0; width: 24px; height: 24px;" id="mainPanelToggleBtn">
+                −
+            </button>
         </div>
-        
-        <!-- Grower Section -->
-        <div class="panel-section">
-            <div class="section-title">Grower Information</div>
-            <div class="form-group">
-                <label class="form-label">Select Grower</label>
-                <select class="form-select" id="growerSelect" onchange="selectGrower()">
-                    <option value="">-- Select or Add New --</option>
-                </select>
+        <div id="mainPanelContent">
+            <!-- Grower Section -->
+            <div class="panel-section">
+                <div class="section-title">Grower Information</div>
+                <div class="form-group">
+                    <label class="form-label">Select Grower</label>
+                    <select class="form-select" id="growerSelect" onchange="selectGrower()">
+                        <option value="">-- Select or Add New --</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-outline" onclick="showAddGrower()">+ Add</button>
+                    <button class="btn btn-outline" onclick="editGrower()">Edit</button>
+                    <button class="btn btn-outline" onclick="deleteGrower()">Delete</button>
+                </div>
             </div>
-            <div class="btn-group">
-                <button class="btn btn-outline" onclick="showAddGrower()">+ Add</button>
-                <button class="btn btn-outline" onclick="editGrower()">Edit</button>
-                <button class="btn btn-outline" onclick="deleteGrower()">Delete</button>
+            
+            <!-- Field Section -->
+            <div class="panel-section" id="fieldSection" style="display: none;">
+                <div class="section-title">Field Management</div>
+                <div class="field-list" id="fieldList">
+                    <div class="no-data">No fields added yet</div>
+                </div>
+                <button class="btn btn-primary" onclick="showAddField()">+ Add New Field</button>
+                <button class="btn btn-success" id="drawFieldBtn" onclick="drawFieldBoundary()">Draw Field Boundary</button>
             </div>
-        </div>
-        
-        <!-- Field Section -->
-        <div class="panel-section" id="fieldSection" style="display: none;">
-            <div class="section-title">Field Management</div>
-            <div class="field-list" id="fieldList">
-                <div class="no-data">No fields added yet</div>
+            
+            <!-- Sampling Section -->
+            <div class="panel-section" id="samplingSection" style="display: none;">
+                <div class="section-title">Sampling</div>
+                <div class="form-group">
+                    <label class="form-label">Active Field: <span id="activeFieldName" style="color: #667eea; font-weight: 600;">None</span></label>
+                </div>
+                <button class="btn btn-warning" onclick="startSampling()">Start Sampling</button>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label class="form-label">Sample Count: <span id="sampleCount" style="font-weight: 600;">0</span></label>
+                </div>
+                <div style="margin-top: 10px; padding: 8px; background: #fff9e6; border-radius: 4px; font-size: 10px; color: #856404; border: 1px solid #ffd966;">
+                    <b>📱 GPS Tip:</b> Phone (cellular) GPS is more accurate than WiFi-only iPad. Use phone for field sampling, iPad for data review.
+                </div>
             </div>
-            <button class="btn btn-primary" onclick="showAddField()">+ Add New Field</button>
-            <button class="btn btn-success" id="drawFieldBtn" onclick="drawFieldBoundary()">Draw Field Boundary</button>
-        </div>
-        
-        <!-- Sampling Section -->
-        <div class="panel-section" id="samplingSection" style="display: none;">
-            <div class="section-title">Sampling</div>
-            <div class="form-group">
-                <label class="form-label">Active Field: <span id="activeFieldName" style="color: #667eea; font-weight: 600;">None</span></label>
-            </div>
-            <button class="btn btn-warning" onclick="startSampling()">Start Sampling</button>
-            <div class="form-group" style="margin-top: 10px;">
-                <label class="form-label">Sample Count: <span id="sampleCount" style="font-weight: 600;">0</span></label>
-            </div>
-        </div>
-        
-        <!-- Export Section -->
-        <div class="panel-section" id="exportSection" style="display: none;">
-            <div class="section-title">Data Export & Backup</div>
-            <button class="btn btn-success" onclick="exportCSV()">Export Samples CSV</button>
-            <div class="btn-group" style="margin-top: 8px;">
-                <button class="btn btn-outline" onclick="backupData()">Backup All</button>
-                <button class="btn btn-outline" onclick="restoreData()">Restore</button>
-            </div>
-            <button class="btn btn-danger" onclick="clearAllData()" style="margin-top: 8px;">Clear All Data</button>
-            <div style="margin-top: 10px; padding: 8px; background: #e8f4f8; border-radius: 4px; font-size: 11px; color: #0c5460; border: 1px solid #bee5eb;">
-                <b>📱 Data Storage:</b> Your data saves automatically to your browser (not on any server). It persists across sessions whether you use GitHub, Netlify, or any hosting. Data remains until you clear browser data.
+            
+            <!-- Export Section -->
+            <div class="panel-section" id="exportSection" style="display: none;">
+                <div class="section-title">Data Export & Backup</div>
+                <button class="btn btn-success" onclick="exportCSV()">Export Samples CSV</button>
+                <div class="btn-group" style="margin-top: 8px;">
+                    <button class="btn btn-outline" onclick="backupData()">Backup All</button>
+                    <button class="btn btn-outline" onclick="restoreData()">Restore</button>
+                </div>
+                <button class="btn btn-danger" onclick="clearAllData()" style="margin-top: 8px;">Clear All Data</button>
+                <div style="margin-top: 10px; padding: 8px; background: #e8f4f8; border-radius: 4px; font-size: 11px; color: #0c5460; border: 1px solid #bee5eb;">
+                    <b>📱 Data Storage:</b> Your data saves automatically to your browser (not on any server). It persists across sessions whether you use GitHub, Netlify, or any hosting. Data remains until you clear browser data.
+                </div>
             </div>
         </div>
     </div>
@@ -507,6 +580,9 @@
     
     <!-- Toolbar -->
     <div class="toolbar">
+        <button class="tool-btn" onclick="toggleAllPanels()" title="Toggle Panels" style="background: #667eea; color: white;">
+            ☰
+        </button>
         <button class="tool-btn" onclick="centerOnGPS()" title="Center on GPS">📍</button>
         <button class="tool-btn" id="dropPinBtn" onclick="dropPin()" title="Drop Sample Pin">🎯</button>
         <button class="tool-btn" onclick="zoomIn()" title="Zoom In">➕</button>
@@ -579,8 +655,20 @@
                 accuracy: position.coords.accuracy
             };
             
-            document.getElementById('gpsStatus').textContent = 
-                `${currentLocation.lat.toFixed(5)}, ${currentLocation.lng.toFixed(5)}`;
+            // Color code GPS accuracy
+            let accuracyColor = '#28a745'; // Green
+            let accuracyText = 'Good';
+            if (currentLocation.accuracy > 10) {
+                accuracyColor = '#ffc107'; // Yellow
+                accuracyText = 'Fair';
+            }
+            if (currentLocation.accuracy > 30) {
+                accuracyColor = '#dc3545'; // Red
+                accuracyText = 'Poor';
+            }
+            
+            document.getElementById('gpsStatus').innerHTML = 
+                `<span style="color: ${accuracyColor};">${currentLocation.lat.toFixed(5)}, ${currentLocation.lng.toFixed(5)} (±${Math.round(currentLocation.accuracy)}m - ${accuracyText})</span>`;
             
             if (locationMarker) {
                 locationMarker.setLatLng([currentLocation.lat, currentLocation.lng]);
@@ -593,11 +681,42 @@
                     fillOpacity: 1,
                     zIndexOffset: 1000
                 }).addTo(map);
+                
+                // Add accuracy circle
+                window.accuracyCircle = L.circle([currentLocation.lat, currentLocation.lng], {
+                    radius: currentLocation.accuracy,
+                    color: accuracyColor,
+                    fillColor: accuracyColor,
+                    fillOpacity: 0.1,
+                    weight: 1
+                }).addTo(map);
+            }
+            
+            // Update accuracy circle
+            if (window.accuracyCircle) {
+                window.accuracyCircle.setLatLng([currentLocation.lat, currentLocation.lng]);
+                window.accuracyCircle.setRadius(currentLocation.accuracy);
+                window.accuracyCircle.setStyle({
+                    color: accuracyColor,
+                    fillColor: accuracyColor
+                });
             }
         }
         
         function handleGPSError(error) {
-            document.getElementById('gpsStatus').textContent = 'GPS unavailable';
+            let errorMsg = 'GPS unavailable';
+            if (error.code === 1) {
+                errorMsg = 'GPS permission denied';
+                if (isMobileDevice()) {
+                    showToast('Enable location in Settings → Safari → Location');
+                }
+            } else if (error.code === 2) {
+                errorMsg = 'GPS signal lost';
+            } else if (error.code === 3) {
+                errorMsg = 'GPS timeout';
+            }
+            
+            document.getElementById('gpsStatus').innerHTML = `<span style="color: #dc3545;">${errorMsg}</span>`;
             console.error('GPS Error:', error);
         }
         
@@ -1214,6 +1333,56 @@
             }
         }
         
+        // Toggle all panels at once (useful for mobile)
+        function toggleAllPanels() {
+            const mainContent = document.getElementById('mainPanelContent');
+            const layerContent = document.getElementById('layerContent');
+            const mainBtn = document.getElementById('mainPanelToggleBtn');
+            const layerBtn = document.getElementById('layerToggleBtn');
+            const mainPanel = document.getElementById('mainPanel');
+            const layerPanel = document.getElementById('layerControls');
+            
+            // Check if either panel is visible
+            if (mainContent.style.display !== 'none' || layerContent.style.display !== 'none') {
+                // Hide both panels
+                mainContent.style.display = 'none';
+                layerContent.style.display = 'none';
+                mainBtn.textContent = '+';
+                layerBtn.textContent = '+';
+                mainPanel.classList.add('collapsed');
+                layerPanel.classList.add('collapsed');
+                layerPanel.style.minWidth = 'auto';
+                showToast('Panels hidden - Full map view');
+            } else {
+                // Show both panels
+                mainContent.style.display = 'block';
+                layerContent.style.display = 'block';
+                mainBtn.textContent = '−';
+                layerBtn.textContent = '−';
+                mainPanel.classList.remove('collapsed');
+                layerPanel.classList.remove('collapsed');
+                layerPanel.style.minWidth = '200px';
+                showToast('Panels visible');
+            }
+        }
+        
+        // Toggle main panel collapse/expand
+        function toggleMainPanel() {
+            const content = document.getElementById('mainPanelContent');
+            const btn = document.getElementById('mainPanelToggleBtn');
+            const panel = document.getElementById('mainPanel');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                btn.textContent = '−';
+                panel.classList.remove('collapsed');
+            } else {
+                content.style.display = 'none';
+                btn.textContent = '+';
+                panel.classList.add('collapsed');
+            }
+        }
+        
         // Toggle layer panel collapse/expand
         function toggleLayerPanel() {
             const content = document.getElementById('layerContent');
@@ -1224,10 +1393,41 @@
                 content.style.display = 'block';
                 btn.textContent = '−';
                 panel.style.minWidth = '200px';
+                panel.classList.remove('collapsed');
             } else {
                 content.style.display = 'none';
                 btn.textContent = '+';
                 panel.style.minWidth = 'auto';
+                panel.classList.add('collapsed');
+            }
+        }
+        
+        // Check if mobile device
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+        }
+        
+        // Auto-collapse panels on mobile
+        function setupMobileView() {
+            if (isMobileDevice()) {
+                // Start with panels collapsed on mobile
+                setTimeout(() => {
+                    const mainPanel = document.getElementById('mainPanelContent');
+                    const layerContent = document.getElementById('layerContent');
+                    
+                    if (window.innerWidth < 600) {
+                        // On very small screens, collapse both panels
+                        mainPanel.style.display = 'none';
+                        document.getElementById('mainPanelToggleBtn').textContent = '+';
+                        document.getElementById('mainPanel').classList.add('collapsed');
+                        
+                        layerContent.style.display = 'none';
+                        document.getElementById('layerToggleBtn').textContent = '+';
+                        document.getElementById('layerControls').classList.add('collapsed');
+                    }
+                    
+                    showToast('Tip: Panels can be collapsed with − button');
+                }, 1000);
             }
         }
         
