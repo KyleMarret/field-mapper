@@ -339,6 +339,12 @@
             }
         }
         
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
         /* File Upload */
         .file-upload {
             position: relative;
@@ -431,42 +437,55 @@
         
         <!-- Export Section -->
         <div class="panel-section" id="exportSection" style="display: none;">
-            <div class="section-title">Data Export</div>
-            <button class="btn btn-success" onclick="exportCSV()">Export to CSV</button>
-            <button class="btn btn-outline" onclick="saveToLocal()">Save to Browser</button>
-            <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
+            <div class="section-title">Data Export & Backup</div>
+            <button class="btn btn-success" onclick="exportCSV()">Export Samples CSV</button>
+            <div class="btn-group" style="margin-top: 8px;">
+                <button class="btn btn-outline" onclick="backupData()">Backup All</button>
+                <button class="btn btn-outline" onclick="restoreData()">Restore</button>
+            </div>
+            <button class="btn btn-danger" onclick="clearAllData()" style="margin-top: 8px;">Clear All Data</button>
+            <div style="margin-top: 10px; padding: 8px; background: #e8f4f8; border-radius: 4px; font-size: 11px; color: #0c5460; border: 1px solid #bee5eb;">
+                <b>📱 Data Storage:</b> Your data saves automatically to your browser (not on any server). It persists across sessions whether you use GitHub, Netlify, or any hosting. Data remains until you clear browser data.
+            </div>
         </div>
     </div>
     
     <!-- Layer Controls -->
-    <div class="layer-controls">
-        <h4>Map Layers</h4>
-        <div class="layer-toggle">
-            <input type="checkbox" id="soilToggle" onchange="toggleSoilLayer()">
-            <label for="soilToggle">SSURGO Soil Data</label>
+    <div class="layer-controls" id="layerControls">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #333;">Map Layers</h4>
+            <button onclick="toggleLayerPanel()" style="background: none; border: none; cursor: pointer; font-size: 18px; color: #667eea; padding: 0; width: 24px; height: 24px;" id="layerToggleBtn">
+                −
+            </button>
         </div>
-        <div class="layer-toggle">
-            <input type="checkbox" id="boundaryToggle" checked onchange="toggleBoundaries()">
-            <label for="boundaryToggle">Field Boundaries</label>
-        </div>
-        <div class="layer-toggle">
-            <input type="checkbox" id="sampleToggle" checked onchange="toggleSamples()">
-            <label for="sampleToggle">Sample Points</label>
-        </div>
-        <div class="layer-toggle">
-            <input type="checkbox" id="satelliteToggle" checked onchange="toggleMapType()">
-            <label for="satelliteToggle">Satellite View</label>
-        </div>
-        <hr style="margin: 10px 0;">
-        <div class="file-upload">
-            <input type="file" id="soilUpload" accept=".json,.geojson,.kml">
-            <label for="soilUpload" class="file-upload-label">
-                📁 Load Soil Data (JSON/KML)
-            </label>
-        </div>
-        <div style="margin-top: 5px; font-size: 11px; color: #666;" id="soilStatus">No soil data loaded</div>
-        <div style="margin-top: 8px; padding: 8px; background: #fff9e6; border-radius: 4px; font-size: 11px; color: #856404; border: 1px solid #ffd966;">
-            <b>Note:</b> MUSYM codes vary by county. The soil series names shown are estimates. Check Web Soil Survey for exact interpretations.
+        <div id="layerContent">
+            <div class="layer-toggle">
+                <input type="checkbox" id="soilToggle" onchange="toggleSoilLayer()">
+                <label for="soilToggle">SSURGO Soil Data</label>
+            </div>
+            <div class="layer-toggle">
+                <input type="checkbox" id="boundaryToggle" checked onchange="toggleBoundaries()">
+                <label for="boundaryToggle">Field Boundaries</label>
+            </div>
+            <div class="layer-toggle">
+                <input type="checkbox" id="sampleToggle" checked onchange="toggleSamples()">
+                <label for="sampleToggle">Sample Points</label>
+            </div>
+            <div class="layer-toggle">
+                <input type="checkbox" id="satelliteToggle" checked onchange="toggleMapType()">
+                <label for="satelliteToggle">Satellite View</label>
+            </div>
+            <hr style="margin: 10px 0;">
+            <div class="file-upload">
+                <input type="file" id="soilUpload" accept=".json,.geojson,.kml">
+                <label for="soilUpload" class="file-upload-label">
+                    📁 Load Soil Data (JSON/KML)
+                </label>
+            </div>
+            <div style="margin-top: 5px; font-size: 11px; color: #666;" id="soilStatus">No soil data loaded</div>
+            <div style="margin-top: 8px; padding: 8px; background: #fff9e6; border-radius: 4px; font-size: 11px; color: #856404; border: 1px solid #ffd966;">
+                <b>Note:</b> MUSYM codes vary by county. The soil series names shown are estimates. Check Web Soil Survey for exact interpretations.
+            </div>
         </div>
     </div>
     
@@ -1195,6 +1214,23 @@
             }
         }
         
+        // Toggle layer panel collapse/expand
+        function toggleLayerPanel() {
+            const content = document.getElementById('layerContent');
+            const btn = document.getElementById('layerToggleBtn');
+            const panel = document.getElementById('layerControls');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                btn.textContent = '−';
+                panel.style.minWidth = '200px';
+            } else {
+                content.style.display = 'none';
+                btn.textContent = '+';
+                panel.style.minWidth = 'auto';
+            }
+        }
+        
         // Layer Toggles
         function toggleSoilLayer() {
             if (!soilLayer) {
@@ -1310,11 +1346,40 @@
         
         // Data Persistence
         function saveData() {
-            localStorage.setItem('kasFieldData', JSON.stringify({
-                growers: growers,
-                currentGrowerId: currentGrowerId,
-                currentFieldId: currentFieldId
-            }));
+            try {
+                localStorage.setItem('kasFieldData', JSON.stringify({
+                    growers: growers,
+                    currentGrowerId: currentGrowerId,
+                    currentFieldId: currentFieldId,
+                    lastSaved: new Date().toISOString()
+                }));
+                
+                // Show brief save indicator
+                const existingIndicator = document.querySelector('.save-indicator');
+                if (existingIndicator) existingIndicator.remove();
+                
+                const saveIndicator = document.createElement('div');
+                saveIndicator.className = 'save-indicator';
+                saveIndicator.style.cssText = `
+                    position: fixed;
+                    bottom: 75px;
+                    left: 10px;
+                    background: #28a745;
+                    color: white;
+                    padding: 5px 10px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    z-index: 9999;
+                    animation: fadeOut 2s ease-in-out;
+                `;
+                saveIndicator.textContent = '✓ Auto-saved';
+                document.body.appendChild(saveIndicator);
+                
+                setTimeout(() => saveIndicator.remove(), 2000);
+            } catch (error) {
+                console.error('Error saving data:', error);
+                showToast('Error saving data - storage may be full');
+            }
         }
         
         function loadSavedData() {
@@ -1322,6 +1387,13 @@
             if (saved) {
                 const data = JSON.parse(saved);
                 growers = data.growers || {};
+                
+                // Show when data was last saved
+                if (data.lastSaved) {
+                    const lastSaved = new Date(data.lastSaved);
+                    const timeAgo = getTimeAgo(lastSaved);
+                    showToast(`Loaded saved data from ${timeAgo}`);
+                }
                 
                 // Restore field boundaries
                 for (let growerId in growers) {
@@ -1355,9 +1427,125 @@
             }
         }
         
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 60) return 'just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return minutes + ' minute' + (minutes > 1 ? 's' : '') + ' ago';
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return hours + ' hour' + (hours > 1 ? 's' : '') + ' ago';
+            const days = Math.floor(hours / 24);
+            return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+        }
+        
         function saveToLocal() {
             saveData();
             showToast('Data saved to browser');
+        }
+        
+        // Backup all data to JSON file
+        function backupData() {
+            const backup = {
+                version: '1.0',
+                timestamp: new Date().toISOString(),
+                growers: growers,
+                currentGrowerId: currentGrowerId,
+                currentFieldId: currentFieldId
+            };
+            
+            const json = JSON.stringify(backup, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `field_sampler_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            showToast('Backup downloaded');
+        }
+        
+        // Restore data from JSON file
+        function restoreData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const backup = JSON.parse(event.target.result);
+                        
+                        if (!backup.growers) {
+                            alert('Invalid backup file');
+                            return;
+                        }
+                        
+                        if (confirm('This will replace all current data. Continue?')) {
+                            // Clear existing map elements
+                            for (let id in fieldBoundaries) {
+                                if (fieldBoundaries[id]) {
+                                    map.removeLayer(fieldBoundaries[id]);
+                                }
+                            }
+                            sampleMarkers.forEach(item => {
+                                if (item.marker) map.removeLayer(item.marker);
+                            });
+                            
+                            // Restore data
+                            growers = backup.growers;
+                            currentGrowerId = backup.currentGrowerId;
+                            currentFieldId = backup.currentFieldId;
+                            
+                            // Rebuild boundaries
+                            fieldBoundaries = {};
+                            sampleMarkers = [];
+                            
+                            for (let growerId in growers) {
+                                const grower = growers[growerId];
+                                for (let fieldId in grower.fields) {
+                                    const field = grower.fields[fieldId];
+                                    if (field.boundary) {
+                                        const coords = field.boundary.map(c => [c.lat, c.lng]);
+                                        const polygon = L.polygon(coords, {
+                                            color: '#667eea',
+                                            weight: 4,
+                                            fillOpacity: 0.15,
+                                            dashArray: '10, 5'
+                                        });
+                                        fieldBoundaries[fieldId] = polygon;
+                                        if (fieldId === currentFieldId) {
+                                            polygon.addTo(map);
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Update UI
+                            updateGrowerSelect();
+                            if (currentGrowerId && growers[currentGrowerId]) {
+                                document.getElementById('growerSelect').value = currentGrowerId;
+                                selectGrower();
+                                if (currentFieldId) {
+                                    selectField(currentFieldId);
+                                }
+                            }
+                            
+                            saveData();
+                            showToast('Data restored from backup');
+                        }
+                    } catch (error) {
+                        alert('Error reading backup file: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            
+            input.click();
         }
         
         function clearAllData() {
