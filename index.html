@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Field Mapper</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        .main-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            width: 280px;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .grower-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            background: white;
+        }
+        
+        .field-section {
+            margin-top: 10px;
+        }
+        
+        .field-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .field-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .add-field-btn {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        .field-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .field-item {
+            padding: 10px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .field-item:hover {
+            background: #e8e8e8;
+        }
+        
+        .field-item.active {
+            background: #007AFF;
+            color: white;
+            border-color: #0051D5;
+        }
+        
+        .field-info {
+            flex: 1;
+        }
+        
+        .field-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        
+        .field-details {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        
+        .field-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .field-action-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: none;
+            background: rgba(0,0,0,0.1);
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .field-item.active .field-action-btn {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .gps-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .gps-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff0000;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .gps-dot.good {
+            background: #00ff00;
+        }
+        
+        .gps-dot.medium {
+            background: #ffaa00;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .bottom-toolbar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 30px;
+            padding: 10px 20px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: flex;
+            gap: 15px;
+        }
+        
+        .tool-btn {
+            min-width: 60px;
+            padding: 8px 12px;
+            border-radius: 25px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            gap: 2px;
+        }
+        
+        .tool-btn span {
+            font-size: 10px;
+            font-weight: 500;
+        }
+        
+        .tool-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .tool-btn.active {
+            background: #007AFF !important;
+            color: white;
+        }
+        
+        .tool-btn.primary {
+            background: #007AFF;
+            color: white;
+        }
+        
+        .tool-btn.success {
+            background: #34C759;
+            color: white;
+        }
+        
+        .tool-btn.warning {
+            background: #FF9500;
+            color: white;
+        }
+        
+        .tool-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .tool-btn.active {
+            background: #007AFF;
+        }
+        
+        .tool-btn.primary {
+            background: #007AFF;
+        }
+        
+        .tool-btn.success {
+            background: #34C759;
+        }
+        
+        .tool-btn.warning {
+            background: #FF9500;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .btn-cancel {
+            background: #f0f0f0;
+        }
+        
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+        }
+        
+        .help-text {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 999;
+            display: none;
+        }
+        
+        .help-text.active {
+            display: block;
+        }
+        
+        .no-fields {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- BIG TEST BANNER -->
+    <div style="position: fixed; top: 0; left: 0; right: 0; background: red; color: white; padding: 20px; text-align: center; z-index: 99999; font-size: 20px; font-weight: bold;">
+        VERSION 2.0 - UPDATED! (You should see this red banner)
+    </div>
+    
+    <div id="map"></div>
+    
+    <!-- GPS Indicator -->
+    <div class="gps-indicator">
+        <div class="gps-dot" id="gpsDot"></div>
+        <span id="gpsText">Locating...</span>
+    </div>
+    
+    <!-- Main Control Panel -->
+    <div class="main-panel">
+        <div class="panel-header">
+            <span style="font-weight: 600; font-size: 16px;">Field Mapper</span>
+            <button class="field-action-btn" onclick="togglePanel()" style="background: transparent;">
+                ↕️
+            </button>
+        </div>
+        
+        <select class="grower-select" id="growerSelect" onchange="selectGrower()">
+            <option value="">Select Grower...</option>
+        </select>
+        
+        <button class="add-field-btn" onclick="addNewGrower()" style="width: 100%; margin-bottom: 15px;">
+            + Add New Grower
+        </button>
+        
+        <div class="field-section" id="fieldSection" style="display: none;">
+            <div class="field-header">
+                <span class="field-title">Fields</span>
+                <button class="add-field-btn" onclick="showFieldModal()">+ Add Field</button>
+            </div>
+            <div class="field-list" id="fieldList">
+                <div class="no-fields">No fields yet. Click "+ Add Field" to create one.</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bottom Toolbar -->
+    <div class="bottom-toolbar">
+        <button class="tool-btn primary" onclick="centerOnLocation()" title="My Location">
+            📍<span>GPS</span>
+        </button>
+        <button class="tool-btn success" id="drawBtn" onclick="toggleDrawing()" title="Draw Field Boundary">
+            ✏️<span>Draw</span>
+        </button>
+        <button class="tool-btn warning" onclick="dropPin()" title="Drop Sample Pin">
+            🎯<span>Sample</span>
+        </button>
+        <button class="tool-btn" onclick="toggleMapType()" title="Toggle Map Type">
+            🗺️<span>Map</span>
+        </button>
+        <button class="tool-btn" id="layersBtn" onclick="toggleLayerPanel()" title="Toggle Layers">
+            🎚️<span>Layers</span>
+        </button>
+        <button class="tool-btn" onclick="manualLocationMode()" title="Set Location Manually">
+            👆<span>Manual</span>
+        </button>
+        <button class="tool-btn" onclick="saveAllData()" title="Save Data">
+            💾<span>Save</span>
+        </button>
+    </div>
+    
+    <!-- Help Text -->
+    <div class="help-text" id="helpText">
+        Tap points on the map to create field boundary. Double-tap to finish.
+    </div>
+    
+    <!-- Add/Edit Field Modal -->
+    <div class="modal" id="fieldModal">
+        <div class="modal-content">
+            <div class="modal-title">Add New Field</div>
+            
+            <div class="form-group">
+                <label class="form-label">Field Name *</label>
+                <input type="text" class="form-input" id="fieldName" placeholder="e.g., North 40, Home Field">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Acres</label>
+                <input type="number" class="form-input" id="fieldAcres" placeholder="e.g., 40">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Current Crop</label>
+                <input type="text" class="form-input" id="fieldCrop" placeholder="e.g., Corn, Soybeans">
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" onclick="closeFieldModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveField()">Save Field</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Grower Modal -->
+    <div class="modal" id="growerModal">
+        <div class="modal-content">
+            <div class="modal-title">Add New Grower</div>
+            
+            <div class="form-group">
+                <label class="form-label">Grower/Farm Name *</label>
+                <input type="text" class="form-input" id="growerName" placeholder="e.g., Smith Farm, Johnson Ranch">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Contact Person</label>
+                <input type="text" class="form-input" id="growerContact" placeholder="e.g., John Smith">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="tel" class="form-input" id="growerPhone" placeholder="e.g., 555-0123">
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" onclick="closeGrowerModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveGrower()">Save Grower</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    
+    <script>
+        // Global variables
+        let map;
+        let currentLocation = null;
+        let locationMarker = null;
+        let currentGrower = null;
+        let currentField = null;
+        let isDrawing = false;
+        let drawControl = null;
+        let fieldBoundaries = {};
+        let sampleMarkers = {};
+        let currentMapType = 'satellite';
+        let soilLayer = null;
+        let soilData = {};
+        let soilColors = {};
+        
+        // Data storage
+        let growers = {};
+        
+        // Initialize map
+        function initMap() {
+            // Create map centered on US Midwest (will update with GPS)
+            map = L.map('map', {
+                center: [41.5, -93.5], // Iowa center as default
+                zoom: 10,
+                zoomControl: false
+            });
+            
+            // Add zoom control to bottom right
+            L.control.zoom({
+                position: 'bottomright'
+            }).addTo(map);
+            
+            // Add high-resolution satellite imagery with labels
+            const satellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                maxZoom: 22,
+                maxNativeZoom: 22,
+                attribution: '© Google'
+            });
+            
+            // Hybrid view - satellite with labels
+            const hybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                maxZoom: 22,
+                maxNativeZoom: 22,
+                attribution: '© Google'
+            });
+            
+            const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 20,
+                attribution: '© OpenStreetMap'
+            });
+            
+            // Start with hybrid (satellite + labels)
+            hybrid.addTo(map);
+            
+            // Store layers for toggle
+            window.mapLayers = { satellite, hybrid, streets };
+            window.currentBaseLayer = hybrid;
+            
+            // Start GPS tracking
+            startGPSTracking();
+            
+            // Track manual map movements
+            map.on('movestart', function() {
+                window.mapMovedManually = true;
+            });
+            
+            // Load saved data
+            loadSavedData();
+        }
+        
+        // GPS tracking with better iOS/Safari support
+        let watchId = null;
+        
+        function startGPSTracking() {
+            // First, add a button to manually trigger GPS permission on iOS
+            if (!window.gpsRequested) {
+                window.gpsRequested = true;
+                console.log('Requesting GPS access...');
+                
+                // For iOS Safari, we need user interaction to trigger GPS
+                const gpsButton = document.createElement('button');
+                gpsButton.id = 'gpsPermissionBtn';
+                gpsButton.style.cssText = `
+                    position: fixed;
+                    top: 60px;
+                    right: 10px;
+                    background: #007AFF;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 20px;
+                    border: none;
+                    z-index: 10000;
+                    font-size: 14px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                `;
+                gpsButton.textContent = '📍 Enable GPS';
+                gpsButton.onclick = function() {
+                    requestGPSPermission();
+                    this.remove();
+                };
+                document.body.appendChild(gpsButton);
+            }
+            
+            // Try to start GPS immediately anyway
+            requestGPSPermission();
+        }
+        
+        function requestGPSPermission() {
+            if ('geolocation' in navigator) {
+                // Clear any existing watch
+                if (watchId) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+                
+                // First try getCurrentPosition to trigger permission prompt
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        console.log('GPS Success - Initial position:', position.coords);
+                        updateLocation(position);
+                        
+                        // Now start watching position
+                        watchId = navigator.geolocation.watchPosition(
+                            (pos) => {
+                                console.log('GPS Update:', pos.coords);
+                                updateLocation(pos);
+                            },
+                            (error) => {
+                                handleGPSError(error);
+                            },
+                            {
+                                enableHighAccuracy: true,
+                                timeout: 30000, // Increased timeout
+                                maximumAge: 0
+                            }
+                        );
+                    },
+                    (error) => {
+                        handleGPSError(error);
+                        // Try watch anyway in case getCurrentPosition fails
+                        watchId = navigator.geolocation.watchPosition(
+                            (pos) => {
+                                console.log('GPS Update (watch):', pos.coords);
+                                updateLocation(pos);
+                            },
+                            (err) => {
+                                handleGPSError(err);
+                            },
+                            {
+                                enableHighAccuracy: true,
+                                timeout: 30000,
+                                maximumAge: 0
+                            }
+                        );
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                updateGPSIndicator(null, 'GPS Not Supported');
+                alert('Geolocation is not supported by this browser.');
+            }
+        }
+        
+        function handleGPSError(error) {
+            console.error('GPS Error:', error.code, error.message);
+            
+            switch(error.code) {
+                case 1: // PERMISSION_DENIED
+                    updateGPSIndicator(null, 'GPS Permission Denied');
+                    showGPSPermissionInstructions();
+                    break;
+                case 2: // POSITION_UNAVAILABLE
+                    updateGPSIndicator(null, 'GPS Signal Lost');
+                    setTimeout(requestGPSPermission, 5000); // Retry in 5 seconds
+                    break;
+                case 3: // TIMEOUT
+                    updateGPSIndicator(null, 'GPS Timeout - Retrying...');
+                    setTimeout(requestGPSPermission, 3000); // Retry in 3 seconds
+                    break;
+                default:
+                    updateGPSIndicator(null, 'GPS Error: ' + error.message);
+            }
+        }
+        
+        function showGPSPermissionInstructions() {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: white;
+                padding: 20px;
+                border-radius: 15px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                z-index: 10000;
+                max-width: 90%;
+                text-align: left;
+            `;
+            modal.innerHTML = `
+                <h3 style="margin-top: 0;">📍 Enable Location Access</h3>
+                <p style="margin: 10px 0;"><strong>For iPhone/iPad:</strong></p>
+                <ol style="margin: 10px 0; padding-left: 20px;">
+                    <li>Go to <strong>Settings</strong></li>
+                    <li>Scroll to <strong>Safari</strong></li>
+                    <li>Tap <strong>Location</strong></li>
+                    <li>Select <strong>"Ask" or "Allow"</strong></li>
+                    <li>Return here and refresh the page</li>
+                </ol>
+                <p style="margin: 10px 0;"><strong>Quick Check:</strong></p>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>Make sure Location Services is ON</li>
+                    <li>Check airplane mode is OFF</li>
+                    <li>Try refreshing the page</li>
+                </ul>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button onclick="location.reload()" style="flex: 1; padding: 10px; background: #007AFF; color: white; border: none; border-radius: 8px;">Refresh Page</button>
+                    <button onclick="this.parentElement.parentElement.remove()" style="flex: 1; padding: 10px; background: #f0f0f0; border: none; border-radius: 8px;">Close</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Update location with better feedback
+        function updateLocation(position) {
+            currentLocation = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                accuracy: position.coords.accuracy
+            };
+            
+            console.log('Location updated:', currentLocation);
+            
+            // Remove the GPS enable button if it exists
+            const btn = document.getElementById('gpsPermissionBtn');
+            if (btn) btn.remove();
+            
+            // Update GPS indicator
+            updateGPSIndicator(position.coords.accuracy);
+            
+            // Update or create location marker
+            if (locationMarker) {
+                locationMarker.setLatLng([currentLocation.lat, currentLocation.lng]);
+            } else {
+                locationMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
+                    radius: 8,
+                    fillColor: '#007AFF',
+                    color: 'white',
+                    weight: 3,
+                    fillOpacity: 1,
+                    zIndexOffset: 1000
+                }).addTo(map);
+                
+                // Center on first GPS lock only if we haven't manually moved the map
+                if (!window.mapMovedManually) {
+                    map.setView([currentLocation.lat, currentLocation.lng], 16);
+                }
+            }
+            
+            // Add/update accuracy circle
+            if (window.accuracyCircle) {
+                window.accuracyCircle.setLatLng([currentLocation.lat, currentLocation.lng]);
+                window.accuracyCircle.setRadius(currentLocation.accuracy);
+            } else {
+                window.accuracyCircle = L.circle([currentLocation.lat, currentLocation.lng], {
+                    radius: currentLocation.accuracy,
+                    color: '#007AFF',
+                    fillColor: '#007AFF',
+                    fillOpacity: 0.1,
+                    weight: 1
+                }).addTo(map);
+            }
+        }
+        
+        function updateLocation(position) {
+            currentLocation = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                accuracy: position.coords.accuracy
+            };
+            
+            // Update GPS indicator
+            updateGPSIndicator(position.coords.accuracy);
+            
+            // Update or create location marker
+            if (locationMarker) {
+                locationMarker.setLatLng([currentLocation.lat, currentLocation.lng]);
+            } else {
+                locationMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
+                    radius: 8,
+                    fillColor: '#007AFF',
+                    color: 'white',
+                    weight: 3,
+                    fillOpacity: 1,
+                    zIndexOffset: 1000
+                }).addTo(map);
+                
+                // Center on first GPS lock
+                map.setView([currentLocation.lat, currentLocation.lng], 15);
+            }
+            
+            // Add accuracy circle
+            if (window.accuracyCircle) {
+                window.accuracyCircle.setLatLng([currentLocation.lat, currentLocation.lng]);
+                window.accuracyCircle.setRadius(currentLocation.accuracy);
+            } else {
+                window.accuracyCircle = L.circle([currentLocation.lat, currentLocation.lng], {
+                    radius: currentLocation.accuracy,
+                    color: '#007AFF',
+                    fillColor: '#007AFF',
+                    fillOpacity: 0.1,
+                    weight: 1
+                }).addTo(map);
+            }
+        }
+        
+        function updateGPSIndicator(accuracy, message = null) {
+            const dot = document.getElementById('gpsDot');
+            const text = document.getElementById('gpsText');
+            
+            if (message) {
+                text.textContent = message;
+                dot.className = 'gps-dot';
+            } else if (accuracy) {
+                text.textContent = `GPS: ±${Math.round(accuracy)}m`;
+                if (accuracy < 10) {
+                    dot.className = 'gps-dot good';
+                } else if (accuracy < 30) {
+                    dot.className = 'gps-dot medium';
+                } else {
+                    dot.className = 'gps-dot';
+                }
+            }
+        }
+        
+        // Manual location mode for when GPS isn't available
+        function manualLocationMode() {
+            const helpText = document.getElementById('helpText');
+            helpText.textContent = 'Tap on the map to set your location manually';
+            helpText.classList.add('active');
+            
+            map.once('click', function(e) {
+                currentLocation = {
+                    lat: e.latlng.lat,
+                    lng: e.latlng.lng,
+                    accuracy: 10, // Assume reasonable accuracy for manual placement
+                    manual: true
+                };
+                
+                // Update or create location marker
+                if (locationMarker) {
+                    locationMarker.setLatLng([currentLocation.lat, currentLocation.lng]);
+                } else {
+                    locationMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
+                        radius: 8,
+                        fillColor: '#FF9500', // Orange for manual
+                        color: 'white',
+                        weight: 3,
+                        fillOpacity: 1,
+                        zIndexOffset: 1000
+                    }).addTo(map);
+                }
+                
+                updateGPSIndicator(10, 'Manual Location Set');
+                helpText.classList.remove('active');
+                
+                // Update accuracy circle
+                if (window.accuracyCircle) {
+                    window.accuracyCircle.setLatLng([currentLocation.lat, currentLocation.lng]);
+                    window.accuracyCircle.setRadius(10);
+                }
+            });
+        }
+        
+        // Center on location (works with GPS or manual)
+        function centerOnLocation() {
+            if (currentLocation) {
+                map.setView([currentLocation.lat, currentLocation.lng], 18);
+            } else {
+                // If no GPS, prompt for manual location
+                if (confirm('GPS not available. Would you like to set your location manually by tapping the map?')) {
+                    manualLocationMode();
+                }
+            }
+        }
+        
+        function toggleMapType() {
+            // Cycle through three map types
+            if (window.currentBaseLayer === window.mapLayers.hybrid) {
+                map.removeLayer(window.mapLayers.hybrid);
+                map.addLayer(window.mapLayers.satellite);
+                window.currentBaseLayer = window.mapLayers.satellite;
+                showMapTypeNotification('Satellite View (No Labels)');
+            } else if (window.currentBaseLayer === window.mapLayers.satellite) {
+                map.removeLayer(window.mapLayers.satellite);
+                map.addLayer(window.mapLayers.streets);
+                window.currentBaseLayer = window.mapLayers.streets;
+                showMapTypeNotification('Street Map');
+            } else {
+                map.removeLayer(window.mapLayers.streets);
+                map.addLayer(window.mapLayers.hybrid);
+                window.currentBaseLayer = window.mapLayers.hybrid;
+                showMapTypeNotification('Satellite + Labels');
+            }
+        }
+        
+        function showMapTypeNotification(text) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 16px;
+                z-index: 9999;
+                animation: fadeInOut 2s ease;
+            `;
+            notification.textContent = text;
+            document.body.appendChild(notification);
+            
+            // Add animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0% { opacity: 0; }
+                    20% { opacity: 1; }
+                    80% { opacity: 1; }
+                    100% { opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            setTimeout(() => notification.remove(), 2000);
+        }
+        
+        // Drawing functions
+        function toggleDrawing() {
+            if (!currentField) {
+                alert('Please select a field first');
+                return;
+            }
+            
+            if (isDrawing) {
+                stopDrawing();
+            } else {
+                startDrawing();
+            }
+        }
+        
+        function startDrawing() {
+            isDrawing = true;
+            document.getElementById('drawBtn').classList.add('active');
+            document.getElementById('helpText').classList.add('active');
+            
+            // Remove existing boundary if any
+            if (fieldBoundaries[currentField]) {
+                map.removeLayer(fieldBoundaries[currentField]);
+            }
+            
+            drawControl = new L.Draw.Polygon(map, {
+                shapeOptions: {
+                    color: '#34C759',
+                    weight: 3,
+                    fillOpacity: 0.2
+                }
+            });
+            
+            drawControl.enable();
+            
+            map.once('draw:created', function(e) {
+                const layer = e.layer;
+                saveBoundary(layer);
+                stopDrawing();
+            });
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+            document.getElementById('drawBtn').classList.remove('active');
+            document.getElementById('helpText').classList.remove('active');
+            
+            if (drawControl) {
+                drawControl.disable();
+                drawControl = null;
+            }
+        }
+        
+        function saveBoundary(layer) {
+            // Save to field
+            fieldBoundaries[currentField] = layer;
+            layer.addTo(map);
+            
+            // Save coordinates to data
+            const coords = layer.getLatLngs()[0].map(ll => ({
+                lat: ll.lat,
+                lng: ll.lng
+            }));
+            
+            if (growers[currentGrower] && growers[currentGrower].fields[currentField]) {
+                growers[currentGrower].fields[currentField].boundary = coords;
+                growers[currentGrower].fields[currentField].area = calculateArea(layer);
+                
+                // Update display
+                updateFieldList();
+                
+                // Zoom to fit the new boundary
+                map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+            }
+        }
+        
+        function calculateArea(layer) {
+            // Calculate area in acres (simplified)
+            const coords = layer.getLatLngs()[0];
+            let area = 0;
+            
+            for (let i = 0; i < coords.length - 1; i++) {
+                area += coords[i].lat * coords[i + 1].lng - coords[i + 1].lat * coords[i].lng;
+            }
+            
+            area = Math.abs(area / 2);
+            // Convert to acres (very rough approximation)
+            area = area * 111000 * 111000 * 0.000247105;
+            
+            return area.toFixed(1);
+        }
+        
+        function dropPin() {
+            if (!currentLocation) {
+                alert('Waiting for GPS location...');
+                return;
+            }
+            
+            if (!currentField) {
+                alert('Please select a field first');
+                return;
+            }
+            
+            const marker = L.marker([currentLocation.lat, currentLocation.lng], {
+                icon: L.divIcon({
+                    html: '<div style="background: #FF9500; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                })
+            }).addTo(map);
+            
+            const sampleId = `S${Date.now()}`;
+            marker.bindPopup(`
+                <div style="padding: 10px;">
+                    <strong>Sample ${sampleId}</strong><br>
+                    Field: ${growers[currentGrower].fields[currentField].name}<br>
+                    Date: ${new Date().toLocaleString()}<br>
+                    GPS Accuracy: ±${Math.round(currentLocation.accuracy)}m
+                </div>
+            `);
+            
+            // Save sample point
+            if (!sampleMarkers[currentField]) {
+                sampleMarkers[currentField] = [];
+            }
+            sampleMarkers[currentField].push({
+                id: sampleId,
+                marker: marker,
+                lat: currentLocation.lat,
+                lng: currentLocation.lng,
+                accuracy: currentLocation.accuracy,
+                timestamp: new Date().toISOString()
+            });
+            
+            marker.openPopup();
+        }
+        
+        // Grower management
+        function selectGrower() {
+            const select = document.getElementById('growerSelect');
+            currentGrower = select.value;
+            
+            if (currentGrower) {
+                document.getElementById('fieldSection').style.display = 'block';
+                updateFieldList();
+            } else {
+                document.getElementById('fieldSection').style.display = 'none';
+            }
+        }
+        
+        function addNewGrower() {
+            document.getElementById('growerModal').classList.add('active');
+        }
+        
+        function closeGrowerModal() {
+            document.getElementById('growerModal').classList.remove('active');
+            // Clear form
+            document.getElementById('growerName').value = '';
+            document.getElementById('growerContact').value = '';
+            document.getElementById('growerPhone').value = '';
+        }
+        
+        function saveGrower() {
+            const name = document.getElementById('growerName').value.trim();
+            if (!name) {
+                alert('Please enter a grower name');
+                return;
+            }
+            
+            const growerId = 'grower_' + Date.now();
+            growers[growerId] = {
+                id: growerId,
+                name: name,
+                contact: document.getElementById('growerContact').value,
+                phone: document.getElementById('growerPhone').value,
+                fields: {},
+                created: new Date().toISOString()
+            };
+            
+            updateGrowerSelect();
+            document.getElementById('growerSelect').value = growerId;
+            selectGrower();
+            closeGrowerModal();
+            
+            saveToLocalStorage();
+        }
+        
+        function updateGrowerSelect() {
+            const select = document.getElementById('growerSelect');
+            select.innerHTML = '<option value="">Select Grower...</option>';
+            
+            for (let id in growers) {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = growers[id].name;
+                select.appendChild(option);
+            }
+        }
+        
+        // Field management
+        function showFieldModal() {
+            if (!currentGrower) {
+                alert('Please select a grower first');
+                return;
+            }
+            document.getElementById('fieldModal').classList.add('active');
+        }
+        
+        function closeFieldModal() {
+            document.getElementById('fieldModal').classList.remove('active');
+            // Clear form
+            document.getElementById('fieldName').value = '';
+            document.getElementById('fieldAcres').value = '';
+            document.getElementById('fieldCrop').value = '';
+        }
+        
+        function saveField() {
+            const name = document.getElementById('fieldName').value.trim();
+            if (!name) {
+                alert('Please enter a field name');
+                return;
+            }
+            
+            const fieldId = 'field_' + Date.now();
+            const field = {
+                id: fieldId,
+                name: name,
+                acres: document.getElementById('fieldAcres').value,
+                crop: document.getElementById('fieldCrop').value,
+                boundary: null,
+                samples: [],
+                created: new Date().toISOString()
+            };
+            
+            if (!growers[currentGrower].fields) {
+                growers[currentGrower].fields = {};
+            }
+            
+            growers[currentGrower].fields[fieldId] = field;
+            
+            updateFieldList();
+            selectField(fieldId);
+            closeFieldModal();
+            
+            saveToLocalStorage();
+        }
+        
+        function updateFieldList() {
+            const container = document.getElementById('fieldList');
+            
+            if (!currentGrower || !growers[currentGrower]) {
+                container.innerHTML = '<div class="no-fields">No grower selected</div>';
+                return;
+            }
+            
+            const fields = growers[currentGrower].fields || {};
+            const fieldIds = Object.keys(fields);
+            
+            if (fieldIds.length === 0) {
+                container.innerHTML = '<div class="no-fields">No fields yet. Click "+ Add Field" to create one.</div>';
+                return;
+            }
+            
+            container.innerHTML = fieldIds.map(id => {
+                const field = fields[id];
+                const isActive = currentField === id;
+                const hasBoundary = field.boundary && field.boundary.length > 0;
+                
+                return `
+                    <div class="field-item ${isActive ? 'active' : ''}" onclick="selectField('${id}')">
+                        <div class="field-info">
+                            <div class="field-name">${field.name}</div>
+                            <div class="field-details">
+                                ${field.acres ? field.acres + ' acres' : 'No acreage set'}
+                                ${field.crop ? ' • ' + field.crop : ''}
+                                ${hasBoundary ? ' • ✓ Boundary' : ''}
+                            </div>
+                        </div>
+                        <div class="field-actions">
+                            ${hasBoundary ? `<button class="field-action-btn" onclick="zoomToField('${id}'); event.stopPropagation();" title="Zoom to field">🔍</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function selectField(fieldId) {
+            currentField = fieldId;
+            updateFieldList();
+            
+            // Show boundary if exists
+            for (let id in fieldBoundaries) {
+                if (fieldBoundaries[id]) {
+                    map.removeLayer(fieldBoundaries[id]);
+                }
+            }
+            
+            if (fieldBoundaries[fieldId]) {
+                fieldBoundaries[fieldId].addTo(map);
+            }
+            
+            // Show sample points for this field
+            for (let id in sampleMarkers) {
+                if (sampleMarkers[id]) {
+                    sampleMarkers[id].forEach(s => {
+                        if (id === fieldId) {
+                            s.marker.addTo(map);
+                        } else {
+                            map.removeLayer(s.marker);
+                        }
+                    });
+                }
+            }
+        }
+        
+        function zoomToField(fieldId) {
+            event.stopPropagation();
+            
+            if (fieldBoundaries[fieldId]) {
+                map.fitBounds(fieldBoundaries[fieldId].getBounds(), { 
+                    padding: [50, 50],
+                    maxZoom: 17 
+                });
+            } else {
+                const field = growers[currentGrower].fields[fieldId];
+                if (field && field.boundary && field.boundary.length > 0) {
+                    // Recreate boundary from saved data
+                    const latlngs = field.boundary.map(coord => [coord.lat, coord.lng]);
+                    const polygon = L.polygon(latlngs, {
+                        color: '#34C759',
+                        weight: 3,
+                        fillOpacity: 0.2
+                    });
+                    fieldBoundaries[fieldId] = polygon;
+                    polygon.addTo(map);
+                    map.fitBounds(polygon.getBounds(), { 
+                        padding: [50, 50],
+                        maxZoom: 17 
+                    });
+                }
+            }
+        }
+        
+        // Data persistence
+        function saveToLocalStorage() {
+            localStorage.setItem('fieldMapperData', JSON.stringify({
+                growers: growers,
+                lastUpdated: new Date().toISOString()
+            }));
+        }
+        
+        function loadSavedData() {
+            const saved = localStorage.getItem('fieldMapperData');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    growers = data.growers || {};
+                    updateGrowerSelect();
+                    
+                    // Restore field boundaries on map
+                    for (let growerId in growers) {
+                        const fields = growers[growerId].fields || {};
+                        for (let fieldId in fields) {
+                            const field = fields[fieldId];
+                            if (field.boundary && field.boundary.length > 0) {
+                                const latlngs = field.boundary.map(coord => [coord.lat, coord.lng]);
+                                const polygon = L.polygon(latlngs, {
+                                    color: '#34C759',
+                                    weight: 3,
+                                    fillOpacity: 0.2
+                                });
+                                fieldBoundaries[fieldId] = polygon;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error loading saved data:', e);
+                }
+            }
+        }
+        
+        function saveAllData() {
+            saveToLocalStorage();
+            alert('All data saved successfully!');
+        }
+        
+        function togglePanel() {
+            // Future: implement panel collapse/expand
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            initMap();
+        });
+        
+        // Soil Survey Functions
+        async function loadSoilSurveyData() {
+            console.log('Loading soil survey data...'); // Debug log
+            const bounds = map.getBounds();
+            const center = map.getCenter();
+            
+            document.getElementById('loadingOverlay').classList.add('active');
+            
+            // For now, let's just use demo data to ensure it works
+            // We'll add real API later once we confirm the UI is working
+            setTimeout(() => {
+                loadDemoSoilData();
+                document.getElementById('loadingOverlay').classList.remove('active');
+            }, 1000);
+        }
+        
+        function loadDemoSoilData() {
+            // Create demonstration soil polygons for testing
+            const bounds = map.getBounds();
+            const center = map.getCenter();
+            
+            const demoFeatures = {
+                type: "FeatureCollection",
+                features: [
+                    {
+                        type: "Feature",
+                        properties: {
+                            musym: "CfA",
+                            muname: "Clarion loam, 0 to 2 percent slopes",
+                            mukey: "demo1",
+                            texture: "Loam",
+                            drainage: "Well drained",
+                            ph_range: "6.1 to 7.3",
+                            om_range: "3 to 4%",
+                            cec: "15-25"
+                        },
+                        geometry: {
+                            type: "Polygon",
+                            coordinates: [[
+                                [center.lng - 0.002, center.lat - 0.002],
+                                [center.lng + 0.001, center.lat - 0.002],
+                                [center.lng + 0.001, center.lat + 0.001],
+                                [center.lng - 0.002, center.lat + 0.001],
+                                [center.lng - 0.002, center.lat - 0.002]
+                            ]]
+                        }
+                    },
+                    {
+                        type: "Feature",
+                        properties: {
+                            musym: "NcB",
+                            muname: "Nicollet clay loam, 1 to 3 percent slopes",
+                            mukey: "demo2",
+                            texture: "Clay loam",
+                            drainage: "Somewhat poorly drained",
+                            ph_range: "6.6 to 7.8",
+                            om_range: "4 to 6%",
+                            cec: "20-30"
+                        },
+                        geometry: {
+                            type: "Polygon",
+                            coordinates: [[
+                                [center.lng + 0.001, center.lat - 0.001],
+                                [center.lng + 0.003, center.lat - 0.001],
+                                [center.lng + 0.003, center.lat + 0.002],
+                                [center.lng + 0.001, center.lat + 0.002],
+                                [center.lng + 0.001, center.lat - 0.001]
+                            ]]
+                        }
+                    }
+                ]
+            };
+            
+            displaySoilLayer(demoFeatures);
+        }
+        
+        function displaySoilLayer(geoJsonData) {
+            // Remove existing soil layer
+            if (soilLayer) {
+                map.removeLayer(soilLayer);
+            }
+            
+            // Generate colors for soil types
+            const soilTypes = {};
+            geoJsonData.features.forEach(feature => {
+                const musym = feature.properties.musym;
+                if (!soilTypes[musym]) {
+                    soilTypes[musym] = {
+                        name: feature.properties.muname,
+                        color: generateSoilColor(Object.keys(soilTypes).length)
+                    };
+                }
+            });
+            
+            soilColors = soilTypes;
+            
+            // Create the soil layer
+            soilLayer = L.geoJSON(geoJsonData, {
+                style: (feature) => {
+                    const musym = feature.properties.musym;
+                    return {
+                        fillColor: soilTypes[musym].color,
+                        weight: 1,
+                        opacity: 0.7,
+                        color: '#666',
+                        fillOpacity: 0.4
+                    };
+                },
+                onEachFeature: (feature, layer) => {
+                    const props = feature.properties;
+                    const popupContent = `
+                        <div class="soil-info-popup">
+                            <h4>${props.musym} - ${props.muname}</h4>
+                            <div class="soil-property">
+                                <label>Texture:</label>
+                                <value>${props.texture || 'Not specified'}</value>
+                            </div>
+                            <div class="soil-property">
+                                <label>Drainage:</label>
+                                <value>${props.drainage || 'Not specified'}</value>
+                            </div>
+                            <div class="soil-property">
+                                <label>pH Range:</label>
+                                <value>${props.ph_range || 'Not specified'}</value>
+                            </div>
+                            <div class="soil-property">
+                                <label>Organic Matter:</label>
+                                <value>${props.om_range || 'Not specified'}</value>
+                            </div>
+                            <div class="soil-property">
+                                <label>CEC:</label>
+                                <value>${props.cec || 'Not specified'}</value>
+                            </div>
+                        </div>
+                    `;
+                    layer.bindPopup(popupContent);
+                    
+                    // Store soil data for samples
+                    soilData[props.mukey] = props;
+                }
+            });
+            
+            soilLayer.addTo(map);
+            updateSoilLegend(soilTypes);
+        }
+        
+        function generateSoilColor(index) {
+            const colors = [
+                '#8B4513', '#CD853F', '#DEB887', '#F4A460', '#D2691E',
+                '#BC8F8F', '#F0E68C', '#B0C4DE', '#9370DB', '#98FB98',
+                '#FFB6C1', '#FFA07A', '#20B2AA', '#87CEEB', '#FFD700'
+            ];
+            return colors[index % colors.length];
+        }
+        
+        function updateSoilLegend(soilTypes) {
+            const legendContent = document.getElementById('legendContent');
+            legendContent.innerHTML = '';
+            
+            Object.keys(soilTypes).forEach(musym => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.innerHTML = `
+                    <div class="legend-color" style="background: ${soilTypes[musym].color};"></div>
+                    <div style="flex: 1;">
+                        <strong>${musym}</strong><br>
+                        <small>${soilTypes[musym].name.substring(0, 30)}...</small>
+                    </div>
+                `;
+                legendContent.appendChild(item);
+            });
+            
+            document.getElementById('soilLegend').classList.add('active');
+        }
+        
+        function toggleSoilSurvey() {
+            const checkbox = document.getElementById('soilSurveyToggle');
+            if (checkbox.checked) {
+                loadSoilSurveyData();
+            } else {
+                if (soilLayer) {
+                    map.removeLayer(soilLayer);
+                    document.getElementById('soilLegend').classList.remove('active');
+                }
+            }
+        }
+        
+        function toggleBoundaries() {
+            const checkbox = document.getElementById('boundariesToggle');
+            Object.values(fieldBoundaries).forEach(boundary => {
+                if (checkbox.checked) {
+                    boundary.addTo(map);
+                } else {
+                    map.removeLayer(boundary);
+                }
+            });
+        }
+        
+        function toggleSamples() {
+            const checkbox = document.getElementById('samplesToggle');
+            Object.values(sampleMarkers).forEach(fieldSamples => {
+                fieldSamples.forEach(sample => {
+                    if (checkbox.checked) {
+                        sample.marker.addTo(map);
+                    } else {
+                        map.removeLayer(sample.marker);
+                    }
+                });
+            });
+        }
+        
+        function toggleLayerPanel() {
+            console.log('Toggle layer panel clicked'); // Debug log
+            const panel = document.getElementById('layerControls');
+            const button = document.getElementById('layersBtn');
+            
+            if (!panel) {
+                console.error('Layer panel not found!');
+                return;
+            }
+            
+            if (panel.classList.contains('active')) {
+                panel.classList.remove('active');
+                button.classList.remove('active');
+            } else {
+                panel.classList.add('active');
+                button.classList.add('active');
+            }
+        }
+        
+        // Get soil type at a location
+        function getSoilTypeAtLocation(lat, lng) {
+            if (!soilLayer) return null;
+            
+            let foundSoil = null;
+            soilLayer.eachLayer(layer => {
+                if (layer.feature && layer.feature.geometry) {
+                    // Check if point is inside this soil polygon
+                    // This is simplified - in production use turf.js for accurate point-in-polygon
+                    const bounds = layer.getBounds();
+                    if (bounds.contains([lat, lng])) {
+                        foundSoil = layer.feature.properties;
+                    }
+                }
+            });
+            
+            return foundSoil;
+        }
+        
+        // Modified dropPin function to include soil data
+        function dropPin() {
+            if (!currentLocation) {
+                alert('Waiting for GPS location...');
+                return;
+            }
+            
+            if (!currentField) {
+                alert('Please select a field first');
+                return;
+            }
+            
+            // Get soil type at this location
+            const soilInfo = getSoilTypeAtLocation(currentLocation.lat, currentLocation.lng);
+            
+            const marker = L.marker([currentLocation.lat, currentLocation.lng], {
+                icon: L.divIcon({
+                    html: '<div style="background: #FF9500; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                })
+            }).addTo(map);
+            
+            const sampleId = `S${Date.now()}`;
+            const timestamp = new Date();
+            
+            // Create popup with soil info
+            let popupContent = `
+                <div style="padding: 10px; min-width: 200px;">
+                    <strong>Sample ${sampleId}</strong><br>
+                    <strong>Field:</strong> ${growers[currentGrower].fields[currentField].name}<br>
+                    <strong>Date:</strong> ${timestamp.toLocaleString()}<br>
+                    <strong>GPS Accuracy:</strong> ±${Math.round(currentLocation.accuracy)}m<br>
+            `;
+            
+            if (soilInfo) {
+                popupContent += `
+                    <hr style="margin: 8px 0;">
+                    <strong>Soil Type:</strong> ${soilInfo.musym}<br>
+                    <strong>Series:</strong> ${soilInfo.muname}<br>
+                    <strong>Texture:</strong> ${soilInfo.texture || 'Not specified'}<br>
+                `;
+            }
+            
+            popupContent += `
+                    <hr style="margin: 8px 0;">
+                    <button onclick="addSampleNotes('${sampleId}')" style="padding: 5px 10px; background: #007AFF; color: white; border: none; border-radius: 5px;">Add Notes</button>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent);
+            
+            // Save sample point with soil data
+            if (!sampleMarkers[currentField]) {
+                sampleMarkers[currentField] = [];
+            }
+            
+            const sampleData = {
+                id: sampleId,
+                marker: marker,
+                lat: currentLocation.lat,
+                lng: currentLocation.lng,
+                accuracy: currentLocation.accuracy,
+                timestamp: timestamp.toISOString(),
+                grower: growers[currentGrower].name,
+                field: growers[currentGrower].fields[currentField].name,
+                soilType: soilInfo ? soilInfo.musym : null,
+                soilSeries: soilInfo ? soilInfo.muname : null,
+                soilTexture: soilInfo ? soilInfo.texture : null,
+                notes: ''
+            };
+            
+            sampleMarkers[currentField].push(sampleData);
+            
+            // Save to field data
+            if (!growers[currentGrower].fields[currentField].samples) {
+                growers[currentGrower].fields[currentField].samples = [];
+            }
+            growers[currentGrower].fields[currentField].samples.push(sampleData);
+            
+            marker.openPopup();
+            
+            // Auto-save
+            saveToLocalStorage();
+        }
+        
+        // Add notes to sample
+        function addSampleNotes(sampleId) {
+            const notes = prompt('Enter notes for this sample:');
+            if (notes) {
+                // Find and update the sample
+                Object.values(sampleMarkers).forEach(fieldSamples => {
+                    const sample = fieldSamples.find(s => s.id === sampleId);
+                    if (sample) {
+                        sample.notes = notes;
+                        saveToLocalStorage();
+                        alert('Notes saved!');
+                    }
+                });
+            }
+        }
+        
+        // Test function for debugging
+        function testLayerPanel() {
+            const panel = document.getElementById('layerControls');
+            if (panel) {
+                panel.style.display = 'block';
+                panel.style.position = 'fixed';
+                panel.style.top = '150px';
+                panel.style.right = '10px';
+                panel.style.zIndex = '10000';
+                panel.style.background = 'white';
+                console.log('Layer panel should be visible now');
+            } else {
+                console.error('Layer panel element not found!');
+            }
+        }
+        
+        // Prevent iOS bounce scrolling
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('.main-panel') || e.target.closest('.modal')) {
+                return; // Allow scrolling in panels
+            }
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
