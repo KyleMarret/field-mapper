@@ -165,14 +165,14 @@
             flex: 1;
         }
         
-        /* Field List */
-        .field-list {
+        /* Lists */
+        .field-list, .soil-list {
             max-height: 200px;
             overflow-y: auto;
             margin: 10px 0;
         }
         
-        .field-item {
+        .field-item, .soil-item {
             background: #f8f9fa;
             border-radius: 6px;
             padding: 10px;
@@ -180,9 +180,12 @@
             cursor: pointer;
             transition: all 0.2s;
             border: 2px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
-        .field-item:hover {
+        .field-item:hover, .soil-item:hover {
             background: #e9ecef;
         }
         
@@ -191,15 +194,39 @@
             background: #f0f4ff;
         }
         
-        .field-name {
+        .soil-item.active {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+        
+        .field-name, .soil-name {
             font-weight: 500;
             color: #333;
         }
         
-        .field-details {
+        .field-details, .soil-details {
             font-size: 12px;
             color: #666;
             margin-top: 4px;
+        }
+        
+        .item-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        
+        .icon-btn:hover {
+            opacity: 1;
         }
         
         /* Layer Controls */
@@ -213,14 +240,6 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             z-index: 1000;
             min-width: 200px;
-        }
-        
-        .layer-controls h4 {
-            margin: 0 0 12px 0;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #333;
         }
         
         .layer-toggle {
@@ -272,7 +291,7 @@
             color: #333;
         }
         
-        /* Sync Status Indicator */
+        /* Sync Status */
         .sync-status {
             position: fixed;
             top: 10px;
@@ -287,7 +306,6 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.3s;
         }
         
         .sync-status.synced {
@@ -369,7 +387,7 @@
             color: white;
         }
         
-        /* Toast Notifications */
+        /* Toast */
         .toast {
             position: fixed;
             top: 70px;
@@ -429,7 +447,6 @@
             color: #667eea;
         }
         
-        /* No data message */
         .no-data {
             padding: 20px;
             text-align: center;
@@ -483,16 +500,14 @@
         <span id="syncStatusText">Connecting...</span>
     </div>
     
-    <!-- Toast Notification -->
+    <!-- Toast -->
     <div class="toast" id="toast"></div>
     
     <!-- Main Control Panel -->
     <div class="control-panel" id="mainPanel">
         <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
             <span>KAS Field Sampler</span>
-            <button onclick="toggleMainPanel()" style="background: none; border: none; cursor: pointer; font-size: 20px; color: white; padding: 0; width: 24px; height: 24px;" id="mainPanelToggleBtn">
-                −
-            </button>
+            <button onclick="toggleMainPanel()" style="background: none; border: none; cursor: pointer; font-size: 20px; color: white; padding: 0; width: 24px; height: 24px;" id="mainPanelToggleBtn">−</button>
         </div>
         <div id="mainPanelContent">
             <!-- Grower Section -->
@@ -508,6 +523,23 @@
                     <button class="btn btn-outline" onclick="showAddGrower()">+ Add</button>
                     <button class="btn btn-outline" onclick="editGrower()">Edit</button>
                     <button class="btn btn-outline" onclick="deleteGrower()">Delete</button>
+                </div>
+            </div>
+            
+            <!-- Soil Data Section -->
+            <div class="panel-section" id="soilSection" style="display: none;">
+                <div class="section-title">🗺️ Soil Data Files</div>
+                <div class="soil-list" id="soilList">
+                    <div class="no-data">No soil data uploaded yet</div>
+                </div>
+                <div class="file-upload">
+                    <input type="file" id="soilUpload" accept=".json,.geojson" onchange="handleSoilUpload(event)">
+                    <label for="soilUpload" class="file-upload-label">
+                        📁 Upload SSURGO Data
+                    </label>
+                </div>
+                <div style="margin-top: 8px; padding: 8px; background: #e8f4f8; border-radius: 4px; font-size: 11px; color: #0c5460; border: 1px solid #bee5eb;">
+                    <b>💡 Tip:</b> Upload all soil maps for this grower. They'll be available on all devices and auto-load with the grower.
                 </div>
             </div>
             
@@ -538,16 +570,9 @@
             
             <!-- Export Section -->
             <div class="panel-section" id="exportSection" style="display: none;">
-                <div class="section-title">Data Export & Backup</div>
+                <div class="section-title">Data Export</div>
                 <button class="btn btn-success" onclick="exportCSV()">Export Samples CSV</button>
-                <div class="btn-group" style="margin-top: 8px;">
-                    <button class="btn btn-outline" onclick="backupData()">Backup All</button>
-                    <button class="btn btn-outline" onclick="restoreData()">Restore</button>
-                </div>
                 <button class="btn btn-outline" onclick="forceSync()" style="margin-top: 8px;">🔄 Force Sync</button>
-                <div style="margin-top: 10px; padding: 8px; background: #e8f4f8; border-radius: 4px; font-size: 11px; color: #0c5460; border: 1px solid #bee5eb;">
-                    <b>☁️ Cloud Sync:</b> Your data syncs automatically across all devices. Works offline - syncs when reconnected.
-                </div>
             </div>
         </div>
     </div>
@@ -555,16 +580,11 @@
     <!-- Layer Controls -->
     <div class="layer-controls" id="layerControls">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h4 style="margin: 0;">Map Layers</h4>
-            <button onclick="toggleLayerPanel()" style="background: none; border: none; cursor: pointer; font-size: 18px; color: #667eea; padding: 0;" id="layerToggleBtn">
-                −
-            </button>
+            <h4 style="margin: 0; font-size: 14px;">Map Layers</h4>
+            <button onclick="toggleLayerPanel()" style="background: none; border: none; cursor: pointer; font-size: 18px; color: #667eea; padding: 0;" id="layerToggleBtn">−</button>
         </div>
         <div id="layerContent">
-            <div class="layer-toggle">
-                <input type="checkbox" id="soilToggle" onchange="toggleSoilLayer()">
-                <label for="soilToggle">SSURGO Soil Data</label>
-            </div>
+            <div id="soilLayerToggles"></div>
             <div class="layer-toggle">
                 <input type="checkbox" id="boundaryToggle" checked onchange="toggleBoundaries()">
                 <label for="boundaryToggle">Field Boundaries</label>
@@ -577,14 +597,6 @@
                 <input type="checkbox" id="satelliteToggle" checked onchange="toggleMapType()">
                 <label for="satelliteToggle">Satellite View</label>
             </div>
-            <hr style="margin: 10px 0;">
-            <div class="file-upload">
-                <input type="file" id="soilUpload" accept=".json,.geojson,.kml">
-                <label for="soilUpload" class="file-upload-label">
-                    📁 Load Soil Data
-                </label>
-            </div>
-            <div style="margin-top: 5px; font-size: 11px; color: #666;" id="soilStatus">No soil data loaded</div>
         </div>
     </div>
     
@@ -614,44 +626,39 @@
         <button class="tool-btn" onclick="zoomToField()" title="Zoom to Field">🔍</button>
     </div>
     
-    <!-- Leaflet JS -->
+    <!-- Leaflet & Supabase -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
-    
-    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
-        // Supabase Configuration
+        // Supabase Config
         const SUPABASE_URL = 'https://btsqmaguhwksppibatna.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0c3FtYWd1aHdrc3BwaWJhdG5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwODcwOTksImV4cCI6MjA3NjY2MzA5OX0.JIn3WRHg3PvK2OqZBCM6CVfvsGDdHRHke9cUlAbacNA';
         
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // Global variables
+        // Global State
         let map;
         let currentLocation = null;
         let locationMarker = null;
-        let soilLayer = null;
-        let soilData = null;
         let drawControl = null;
         let isDrawing = false;
         let isSampling = false;
         let isOnline = navigator.onLine;
         
-        // Data structures
         let growers = {};
         let currentGrowerId = null;
         let currentFieldId = null;
         let fieldBoundaries = {};
         let sampleMarkers = [];
+        let soilLayers = {}; // { fileId: L.geoJSON }
         
-        // ===== SUPABASE DATABASE FUNCTIONS =====
+        // ===== SUPABASE FUNCTIONS =====
         
         async function loadAllGrowers() {
             try {
-                updateSyncStatus('syncing', 'Loading data...');
+                updateSyncStatus('syncing', 'Loading growers...');
                 
                 const { data: growersData, error: growersError } = await supabase
                     .from('growers')
@@ -666,10 +673,29 @@
                         id: grower.id,
                         name: grower.name,
                         created: grower.created_at,
+                        soilFiles: {},
                         fields: {}
                     };
                     
-                    // Load fields for this grower
+                    // Load soil files
+                    const { data: soilData, error: soilError } = await supabase
+                        .from('soil_files')
+                        .select('*')
+                        .eq('grower_id', grower.id);
+                    
+                    if (soilError) throw soilError;
+                    
+                    for (const soil of soilData) {
+                        growers[grower.id].soilFiles[soil.id] = {
+                            id: soil.id,
+                            filename: soil.filename,
+                            geojsonData: soil.geojson_data,
+                            uploaded: soil.uploaded_at,
+                            visible: false
+                        };
+                    }
+                    
+                    // Load fields
                     const { data: fieldsData, error: fieldsError } = await supabase
                         .from('fields')
                         .select('*')
@@ -683,12 +709,11 @@
                             name: field.name,
                             acres: field.acres,
                             boundary: field.boundary,
-                            geojson_filename: field.geojson_filename,
                             created: field.created_at,
                             samples: []
                         };
                         
-                        // Load samples for this field
+                        // Load samples
                         const { data: samplesData, error: samplesError } = await supabase
                             .from('samples')
                             .select('*')
@@ -710,13 +735,13 @@
                     }
                 }
                 
-                updateSyncStatus('synced', 'Synced');
-                saveToLocalStorage(); // Backup to localStorage
+                updateSyncStatus('synced', 'Synced ✓');
+                saveToLocalStorage();
                 return true;
             } catch (error) {
                 console.error('Error loading growers:', error);
-                updateSyncStatus('offline', 'Offline mode');
-                loadFromLocalStorage(); // Fallback to localStorage
+                updateSyncStatus('offline', 'Offline - Using local data');
+                loadFromLocalStorage();
                 return false;
             }
         }
@@ -733,11 +758,11 @@
                     .select();
                 
                 if (error) throw error;
-                saveToLocalStorage(); // Backup
+                saveToLocalStorage();
                 return data[0];
             } catch (error) {
                 console.error('Error saving grower:', error);
-                saveToLocalStorage(); // Save locally if cloud fails
+                saveToLocalStorage();
                 throw error;
             }
         }
@@ -768,7 +793,6 @@
                         name: field.name,
                         acres: field.acres,
                         boundary: field.boundary,
-                        geojson_filename: field.geojson_filename || null,
                         created_at: field.created
                     })
                     .select();
@@ -821,6 +845,7 @@
                     .select();
                 
                 if (error) throw error;
+                saveToLocalStorage();
                 return data[0];
             } catch (error) {
                 console.error('Error saving soil file:', error);
@@ -828,7 +853,23 @@
             }
         }
         
-        // LocalStorage fallback functions
+        async function deleteSoilFile(fileId) {
+            try {
+                const { error } = await supabase
+                    .from('soil_files')
+                    .delete()
+                    .eq('id', fileId);
+                
+                if (error) throw error;
+                saveToLocalStorage();
+                return true;
+            } catch (error) {
+                console.error('Error deleting soil file:', error);
+                throw error;
+            }
+        }
+        
+        // LocalStorage fallback
         function saveToLocalStorage() {
             try {
                 localStorage.setItem('kasFieldData', JSON.stringify({
@@ -858,7 +899,7 @@
             return false;
         }
         
-        // Sync status indicator
+        // Sync status
         function updateSyncStatus(status, text) {
             const statusEl = document.getElementById('syncStatus');
             const textEl = document.getElementById('syncStatusText');
@@ -866,7 +907,6 @@
             statusEl.className = 'sync-status ' + status;
             textEl.textContent = text;
             
-            // Auto-hide when synced
             if (status === 'synced') {
                 setTimeout(() => {
                     statusEl.style.opacity = '0';
@@ -880,7 +920,6 @@
             }
         }
         
-        // Network status monitoring
         window.addEventListener('online', async () => {
             isOnline = true;
             updateSyncStatus('syncing', 'Reconnected, syncing...');
@@ -891,7 +930,7 @@
         window.addEventListener('offline', () => {
             isOnline = false;
             updateSyncStatus('offline', 'Offline mode');
-            showToast('Working offline - will sync when reconnected');
+            showToast('Working offline');
         });
         
         async function forceSync() {
@@ -900,15 +939,16 @@
             if (success) {
                 updateGrowerSelect();
                 if (currentGrowerId) {
-                    selectGrower();
+                    await selectGrower();
                 }
-                showToast('Data synced successfully!');
+                showToast('Data synced!');
             } else {
                 showToast('Sync failed - check connection');
             }
         }
         
-        // Initialize map
+        // ===== MAP INITIALIZATION =====
+        
         async function initMap() {
             map = L.map('map').setView([38.5, -90.5], 10);
             
@@ -922,9 +962,9 @@
                 attribution: '© OpenStreetMap'
             });
             
-            window.mapLayers = { satellite, streets, current: 'satellite' };
+            window.mapLayers = { satellite, streets };
             
-            // Start GPS tracking
+            // GPS
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition(updateGPS, handleGPSError, {
                     enableHighAccuracy: true,
@@ -933,19 +973,16 @@
                 });
             }
             
-            // Setup file upload
-            document.getElementById('soilUpload').addEventListener('change', handleSoilUpload);
-            
-            // Load data from Supabase (with localStorage fallback)
+            // Load data
             const loaded = await loadAllGrowers();
             if (loaded) {
                 updateGrowerSelect();
-                restoreFieldBoundariesAndSamples();
+                restoreMapElements();
             }
         }
         
-        function restoreFieldBoundariesAndSamples() {
-            // Restore field boundaries
+        function restoreMapElements() {
+            // Restore boundaries
             for (let growerId in growers) {
                 const grower = growers[growerId];
                 for (let fieldId in grower.fields) {
@@ -972,21 +1009,21 @@
                                 })
                             });
                             
-                            let popupContent = '<div style="min-width: 180px;">';
-                            popupContent += `<h4 style="margin: 0 0 5px 0; color: #ed8936;">Sample #${sample.number}</h4>`;
-                            popupContent += `<b>GPS:</b> ${sample.lat.toFixed(6)}, ${sample.lng.toFixed(6)}<br>`;
-                            popupContent += `<b>Time:</b> ${new Date(sample.timestamp).toLocaleString()}<br>`;
-                            if (sample.soilType) popupContent += `<b>Soil:</b> ${sample.soilType}<br>`;
-                            popupContent += '</div>';
+                            let popup = `<div style="min-width: 180px;">`;
+                            popup += `<h4 style="margin: 0 0 5px 0; color: #ed8936;">Sample #${sample.number}</h4>`;
+                            popup += `<b>GPS:</b> ${sample.lat.toFixed(6)}, ${sample.lng.toFixed(6)}<br>`;
+                            if (sample.soilType) popup += `<b>Soil:</b> ${sample.soilType}<br>`;
+                            popup += `<b>Time:</b> ${new Date(sample.timestamp).toLocaleString()}<br>`;
+                            popup += `</div>`;
                             
-                            marker.bindPopup(popupContent);
-                            sampleMarkers.push({ marker: marker, fieldId: fieldId, sample: sample });
+                            marker.bindPopup(popup);
+                            sampleMarkers.push({ marker, fieldId, sample });
                         });
                     }
                 }
             }
             
-            // Restore selection if exists
+            // Restore selection
             if (currentGrowerId && growers[currentGrowerId]) {
                 document.getElementById('growerSelect').value = currentGrowerId;
                 selectGrower();
@@ -997,7 +1034,7 @@
             }
         }
         
-        // GPS functions
+        // GPS
         function updateGPS(position) {
             currentLocation = {
                 lat: position.coords.latitude,
@@ -1043,10 +1080,7 @@
             if (window.accuracyCircle) {
                 window.accuracyCircle.setLatLng([currentLocation.lat, currentLocation.lng]);
                 window.accuracyCircle.setRadius(currentLocation.accuracy);
-                window.accuracyCircle.setStyle({
-                    color: accuracyColor,
-                    fillColor: accuracyColor
-                });
+                window.accuracyCircle.setStyle({ color: accuracyColor, fillColor: accuracyColor });
             }
         }
         
@@ -1059,23 +1093,31 @@
             document.getElementById('gpsStatus').innerHTML = `<span style="color: #dc3545;">${errorMsg}</span>`;
         }
         
-        // Grower Management
-        function selectGrower() {
+        // ===== GROWER MANAGEMENT =====
+        
+        async function selectGrower() {
             const select = document.getElementById('growerSelect');
             currentGrowerId = select.value;
             
             if (currentGrowerId) {
-                document.getElementById('currentGrower').textContent = growers[currentGrowerId].name;
+                const grower = growers[currentGrowerId];
+                document.getElementById('currentGrower').textContent = grower.name;
+                document.getElementById('soilSection').style.display = 'block';
                 document.getElementById('fieldSection').style.display = 'block';
                 document.getElementById('samplingSection').style.display = 'block';
                 document.getElementById('exportSection').style.display = 'block';
+                
+                updateSoilList();
                 updateFieldList();
+                loadSoilLayersForGrower();
             } else {
                 document.getElementById('currentGrower').textContent = 'None';
+                document.getElementById('soilSection').style.display = 'none';
                 document.getElementById('fieldSection').style.display = 'none';
                 document.getElementById('samplingSection').style.display = 'none';
                 document.getElementById('exportSection').style.display = 'none';
                 currentFieldId = null;
+                clearAllSoilLayers();
             }
         }
         
@@ -1086,6 +1128,7 @@
                 const grower = {
                     id: id,
                     name: name,
+                    soilFiles: {},
                     fields: {},
                     created: new Date().toISOString()
                 };
@@ -1094,13 +1137,14 @@
                 
                 try {
                     await saveGrower(grower);
-                    updateGrowerSelect();
-                    document.getElementById('growerSelect').value = id;
-                    selectGrower();
                     showToast(`Grower "${name}" added and synced`);
                 } catch (error) {
                     showToast(`Grower "${name}" added (will sync when online)`);
                 }
+                
+                updateGrowerSelect();
+                document.getElementById('growerSelect').value = id;
+                await selectGrower();
             }
         }
         
@@ -1114,12 +1158,12 @@
                 growers[currentGrowerId].name = newName;
                 try {
                     await saveGrower(growers[currentGrowerId]);
-                    updateGrowerSelect();
-                    selectGrower();
                     showToast('Grower updated');
                 } catch (error) {
                     showToast('Grower updated (will sync when online)');
                 }
+                updateGrowerSelect();
+                selectGrower();
             }
         }
         
@@ -1128,7 +1172,7 @@
                 alert('Please select a grower first');
                 return;
             }
-            if (confirm(`Delete grower "${growers[currentGrowerId].name}" and all fields?`)) {
+            if (confirm(`Delete grower "${growers[currentGrowerId].name}" and all data?`)) {
                 const fields = growers[currentGrowerId].fields;
                 for (let fieldId in fields) {
                     if (fieldBoundaries[fieldId]) {
@@ -1137,10 +1181,12 @@
                     }
                 }
                 
+                clearAllSoilLayers();
+                
                 try {
                     await deleteGrowerFromDB(currentGrowerId);
                 } catch (error) {
-                    console.error('Delete from cloud failed, deleted locally');
+                    console.error('Delete from cloud failed');
                 }
                 
                 delete growers[currentGrowerId];
@@ -1164,7 +1210,342 @@
             }
         }
         
-        // Field Management
+        // ===== SOIL DATA MANAGEMENT =====
+        
+        async function handleSoilUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (!currentGrowerId) {
+                alert('Please select a grower first');
+                e.target.value = '';
+                return;
+            }
+            
+            const filename = prompt('Name this soil data file:', file.name.replace(/\.(geo)?json$/i, ''));
+            if (!filename) {
+                e.target.value = '';
+                return;
+            }
+            
+            updateSyncStatus('syncing', 'Uploading soil data...');
+            
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                try {
+                    const geoData = JSON.parse(event.target.result);
+                    
+                    const result = await saveSoilFile(currentGrowerId, filename, geoData);
+                    
+                    const fileId = result.id;
+                    growers[currentGrowerId].soilFiles[fileId] = {
+                        id: fileId,
+                        filename: filename,
+                        geojsonData: geoData,
+                        uploaded: result.uploaded_at,
+                        visible: true
+                    };
+                    
+                    updateSoilList();
+                    createSoilLayer(fileId, filename, geoData);
+                    
+                    updateSyncStatus('synced', 'Soil data uploaded ✓');
+                    showToast(`"${filename}" uploaded and synced`);
+                } catch (error) {
+                    console.error('Error uploading soil data:', error);
+                    updateSyncStatus('offline', 'Upload failed');
+                    showToast('Error uploading soil data');
+                }
+                
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+        
+        function updateSoilList() {
+            const container = document.getElementById('soilList');
+            const soilFiles = growers[currentGrowerId]?.soilFiles || {};
+            const fileIds = Object.keys(soilFiles);
+            
+            if (fileIds.length === 0) {
+                container.innerHTML = '<div class="no-data">No soil data uploaded yet</div>';
+                return;
+            }
+            
+            container.innerHTML = fileIds.map(id => {
+                const file = soilFiles[id];
+                const featureCount = file.geojsonData?.features?.length || 0;
+                return `
+                    <div class="soil-item ${file.visible ? 'active' : ''}" onclick="toggleSoilFileVisibility('${id}')">
+                        <div style="flex: 1;">
+                            <div class="soil-name">${file.filename}</div>
+                            <div class="soil-details">${featureCount} polygons • ${file.visible ? 'Visible' : 'Hidden'}</div>
+                        </div>
+                        <div class="item-actions">
+                            <button class="icon-btn" onclick="event.stopPropagation(); deleteSoilFilePrompt('${id}')" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function loadSoilLayersForGrower() {
+            if (!currentGrowerId) return;
+            
+            clearAllSoilLayers();
+            
+            const soilFiles = growers[currentGrowerId].soilFiles;
+            for (let fileId in soilFiles) {
+                const file = soilFiles[fileId];
+                createSoilLayer(fileId, file.filename, file.geojsonData);
+                if (file.visible) {
+                    soilLayers[fileId].addTo(map);
+                }
+            }
+            
+            updateLayerToggles();
+        }
+        
+        function createSoilLayer(fileId, filename, geoData) {
+            if (soilLayers[fileId]) {
+                map.removeLayer(soilLayers[fileId]);
+            }
+            
+            const colorMap = {};
+            const baseColors = ['#8B4513', '#CD853F', '#DEB887', '#F4A460', '#D2691E', '#BC8F8F', '#DAA520', '#B8860B'];
+            let colorIndex = 0;
+            
+            geoData.features.forEach(feature => {
+                const musym = feature.properties.MUSYM;
+                if (musym && !colorMap[musym]) {
+                    colorMap[musym] = baseColors[colorIndex % baseColors.length];
+                    colorIndex++;
+                }
+            });
+            
+            const layer = L.geoJSON(geoData, {
+                style: function(feature) {
+                    const musym = feature.properties.MUSYM || '';
+                    return {
+                        fillColor: colorMap[musym] || '#BC8F8F',
+                        weight: 3,
+                        opacity: 1,
+                        color: '#000',
+                        fillOpacity: 0.4
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    layer.soilData = feature.properties;
+                    
+                    let popup = '<div style="min-width: 220px; font-size: 13px;">';
+                    popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">Soil Information</h4>';
+                    
+                    if (feature.properties.MUSYM) {
+                        popup += `<b>Map Unit Symbol:</b> ${feature.properties.MUSYM}<br>`;
+                    }
+                    if (feature.properties.MUKEY) {
+                        popup += `<b>MUKEY:</b> ${feature.properties.MUKEY}<br>`;
+                    }
+                    if (feature.properties.AREASYMBOL) {
+                        popup += `<b>Survey Area:</b> ${feature.properties.AREASYMBOL}<br>`;
+                    }
+                    
+                    const info = getSoilInfo(feature.properties.MUSYM);
+                    if (info) {
+                        popup += `<hr style="margin: 8px 0;">`;
+                        if (info.series && !info.series.includes('Map Unit')) {
+                            popup += `<b>Soil Series:</b> ${info.series}<br>`;
+                            popup += `<b>Texture:</b> ${info.texture}<br>`;
+                            popup += `<b>Drainage:</b> ${info.drainage}<br>`;
+                            popup += `<b>Slope:</b> ${info.slope}<br>`;
+                            if (info.ph) popup += `<b>pH Range:</b> ${info.ph}<br>`;
+                            if (info.notes) popup += `<b>Notes:</b> <i style="font-size: 11px;">${info.notes}</i><br>`;
+                        } else {
+                            popup += `<i>Soil series not identified for ${feature.properties.MUSYM}</i><br>`;
+                            popup += `<small>Check Web Soil Survey for interpretation</small><br>`;
+                        }
+                    }
+                    
+                    popup += `<hr style="margin: 8px 0;">`;
+                    popup += `<small><a href="https://websoilsurvey.nrcs.usda.gov/" target="_blank">Web Soil Survey →</a></small>`;
+                    popup += '</div>';
+                    
+                    layer.bindPopup(popup);
+                }
+            });
+            
+            soilLayers[fileId] = layer;
+        }
+        
+        function toggleSoilFileVisibility(fileId) {
+            if (!currentGrowerId) return;
+            
+            const file = growers[currentGrowerId].soilFiles[fileId];
+            file.visible = !file.visible;
+            
+            if (file.visible && soilLayers[fileId]) {
+                soilLayers[fileId].addTo(map);
+                
+                // Zoom to bounds if first time showing
+                const bounds = soilLayers[fileId].getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            } else if (soilLayers[fileId]) {
+                map.removeLayer(soilLayers[fileId]);
+            }
+            
+            updateSoilList();
+            updateLayerToggles();
+        }
+        
+        async function deleteSoilFilePrompt(fileId) {
+            if (!currentGrowerId) return;
+            
+            const file = growers[currentGrowerId].soilFiles[fileId];
+            if (confirm(`Delete soil data file "${file.filename}"?`)) {
+                try {
+                    await deleteSoilFile(fileId);
+                } catch (error) {
+                    console.error('Delete from cloud failed');
+                }
+                
+                if (soilLayers[fileId]) {
+                    map.removeLayer(soilLayers[fileId]);
+                    delete soilLayers[fileId];
+                }
+                
+                delete growers[currentGrowerId].soilFiles[fileId];
+                updateSoilList();
+                updateLayerToggles();
+                showToast('Soil data file deleted');
+            }
+        }
+        
+        function clearAllSoilLayers() {
+            for (let fileId in soilLayers) {
+                if (soilLayers[fileId]) {
+                    map.removeLayer(soilLayers[fileId]);
+                }
+            }
+            soilLayers = {};
+            updateLayerToggles();
+        }
+        
+        function updateLayerToggles() {
+            const container = document.getElementById('soilLayerToggles');
+            
+            if (!currentGrowerId) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            const soilFiles = growers[currentGrowerId].soilFiles;
+            const fileIds = Object.keys(soilFiles);
+            
+            if (fileIds.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = fileIds.map(fileId => {
+                const file = soilFiles[fileId];
+                return `
+                    <div class="layer-toggle">
+                        <input type="checkbox" id="soil_${fileId}" ${file.visible ? 'checked' : ''} onchange="toggleSoilFileVisibility('${fileId}')">
+                        <label for="soil_${fileId}">${file.filename}</label>
+                    </div>
+                `;
+            }).join('');
+            
+            if (fileIds.length > 0) {
+                container.innerHTML += '<hr style="margin: 10px 0;">';
+            }
+        }
+        
+        function getSoilInfo(musym) {
+            const soilData = {
+                '79B': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '0-2% slopes',
+                    ph: '5.5-7.3',
+                    notes: 'Deep, well-drained loess soils'
+                },
+                '79C2': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '2-5% slopes, eroded',
+                    ph: '5.5-7.3',
+                    notes: 'Good for vineyards with proper erosion control'
+                },
+                '79D2': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '5-10% slopes, eroded',
+                    ph: '5.5-7.3',
+                    notes: 'Steeper slopes, manage erosion'
+                },
+                '79D3': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '5-10% slopes, severely eroded',
+                    ph: '5.5-7.3',
+                    notes: 'Severely eroded, may need restoration'
+                },
+                '79E2': { 
+                    series: 'Menfro silt loam', 
+                    texture: 'Silt loam', 
+                    drainage: 'Well drained', 
+                    slope: '10-15% slopes, eroded',
+                    ph: '5.5-7.3',
+                    notes: 'Steep slopes, erosion concern'
+                },
+                '90601': {
+                    series: 'Memphis silt loam',
+                    texture: 'Silt loam',
+                    drainage: 'Well drained',
+                    slope: '0-2% slopes',
+                    ph: '5.1-6.5',
+                    notes: 'Deep, well-drained loess soils, excellent for vineyards'
+                },
+                '90021': {
+                    series: 'Memphis silt loam',
+                    texture: 'Silt loam',
+                    drainage: 'Well drained',
+                    slope: '2-5% slopes',
+                    ph: '5.1-6.5',
+                    notes: 'Good agricultural soil, moderate slope'
+                },
+                '90017': {
+                    series: 'Memphis silt loam',
+                    texture: 'Silt loam',
+                    drainage: 'Well drained',
+                    slope: '0-2% slopes',
+                    ph: '5.1-6.5',
+                    notes: 'Prime farmland when not flooded'
+                }
+            };
+            
+            if (soilData[musym]) {
+                return soilData[musym];
+            } else {
+                return {
+                    series: `Map Unit ${musym}`,
+                    texture: 'See Web Soil Survey',
+                    drainage: 'See Web Soil Survey',
+                    slope: 'Varies',
+                    notes: 'Check SSURGO data tables or Web Soil Survey for detailed interpretation'
+                };
+            }
+        }
+        
+        // ===== FIELD MANAGEMENT =====
+        
         async function showAddField() {
             if (!currentGrowerId) {
                 alert('Please select a grower first');
@@ -1235,7 +1616,7 @@
             
             updateFieldList();
             
-            // Hide other boundaries, show this one
+            // Show only this field's boundary
             for (let id in fieldBoundaries) {
                 if (fieldBoundaries[id]) {
                     if (id === fieldId) {
@@ -1246,7 +1627,7 @@
                 }
             }
             
-            // Show samples for this field
+            // Show only this field's samples
             sampleMarkers.forEach(item => {
                 if (item.fieldId === fieldId && document.getElementById('sampleToggle').checked) {
                     item.marker.addTo(map);
@@ -1331,7 +1712,8 @@
             }
         }
         
-        // Sampling
+        // ===== SAMPLING =====
+        
         function startSampling() {
             if (!currentFieldId) {
                 alert('Please select a field first');
@@ -1382,16 +1764,17 @@
             let soilType = '';
             let soilInfo = null;
             
-            if (soilLayer) {
-                const point = L.latLng(lat, lng);
-                soilLayer.eachLayer(function(layer) {
-                    if (layer.getBounds && layer.getBounds().contains(point)) {
-                        if (layer.soilData) {
+            // Check all active soil layers
+            const point = L.latLng(lat, lng);
+            for (let fileId in soilLayers) {
+                if (growers[currentGrowerId].soilFiles[fileId].visible) {
+                    soilLayers[fileId].eachLayer(function(layer) {
+                        if (layer.getBounds && layer.getBounds().contains(point) && layer.soilData) {
                             soilType = layer.soilData.MUSYM || '';
                             soilInfo = getSoilInfo(soilType);
                         }
-                    }
-                });
+                    });
+                }
             }
             
             const field = growers[currentGrowerId].fields[currentFieldId];
@@ -1405,22 +1788,24 @@
                 })
             }).addTo(map);
             
-            let popupContent = '<div style="min-width: 180px;">';
-            popupContent += `<h4 style="margin: 0 0 5px 0; color: #ed8936;">Sample #${sampleNum}</h4>`;
-            popupContent += `<b>Field:</b> ${field.name}<br>`;
+            let popup = '<div style="min-width: 200px;">';
+            popup += `<h4 style="margin: 0 0 5px 0; color: #ed8936;">Sample #${sampleNum}</h4>`;
+            popup += `<b>Field:</b> ${field.name}<br>`;
             if (soilType) {
-                popupContent += `<b>Soil Unit:</b> ${soilType}<br>`;
-                if (soilInfo) {
-                    popupContent += `<b>Series:</b> ${soilInfo.series}<br>`;
-                    popupContent += `<b>Texture:</b> ${soilInfo.texture}<br>`;
+                popup += `<b>Soil Unit:</b> ${soilType}<br>`;
+                if (soilInfo && soilInfo.series && !soilInfo.series.includes('Map Unit')) {
+                    popup += `<b>Series:</b> ${soilInfo.series}<br>`;
+                    popup += `<b>Texture:</b> ${soilInfo.texture}<br>`;
+                    popup += `<b>Drainage:</b> ${soilInfo.drainage}<br>`;
+                    popup += `<b>pH:</b> ${soilInfo.ph}<br>`;
                 }
             }
-            popupContent += `<b>GPS:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>`;
-            popupContent += `<b>Time:</b> ${new Date().toLocaleString()}<br>`;
-            if (isManual) popupContent += `<i style="color: #666;">Manual placement</i>`;
-            popupContent += '</div>';
+            popup += `<b>GPS:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>`;
+            popup += `<b>Time:</b> ${new Date().toLocaleString()}<br>`;
+            if (isManual) popup += `<i style="color: #666;">Manual placement</i>`;
+            popup += '</div>';
             
-            marker.bindPopup(popupContent);
+            marker.bindPopup(popup);
             
             const sample = {
                 id: crypto.randomUUID(),
@@ -1436,7 +1821,7 @@
             if (!field.samples) field.samples = [];
             field.samples.push(sample);
             
-            sampleMarkers.push({ marker: marker, fieldId: currentFieldId, sample: sample });
+            sampleMarkers.push({ marker, fieldId: currentFieldId, sample });
             
             document.getElementById('sampleCount').textContent = field.samples.length;
             
@@ -1448,187 +1833,8 @@
             }
         }
         
-        // Soil Data Management
-        function handleSoilUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            document.getElementById('soilStatus').textContent = 'Loading...';
-            
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const content = event.target.result;
-                const fileName = file.name.toLowerCase();
-                
-                if (fileName.endsWith('.json') || fileName.endsWith('.geojson')) {
-                    loadSoilGeoJSON(content, file.name);
-                } else if (fileName.endsWith('.kml')) {
-                    loadSoilKML(content);
-                }
-            };
-            reader.readAsText(file);
-        }
+        // ===== UI FUNCTIONS =====
         
-        async function loadSoilGeoJSON(jsonString, filename) {
-            try {
-                const geoData = JSON.parse(jsonString);
-                soilData = geoData;
-                
-                // Save to database if grower selected
-                if (currentGrowerId) {
-                    try {
-                        await saveSoilFile(currentGrowerId, filename, geoData);
-                        if (currentFieldId) {
-                            growers[currentGrowerId].fields[currentFieldId].geojson_filename = filename;
-                            await saveField(currentGrowerId, growers[currentGrowerId].fields[currentFieldId]);
-                        }
-                    } catch (error) {
-                        console.error('Could not save soil file to cloud');
-                    }
-                }
-                
-                if (soilLayer) {
-                    map.removeLayer(soilLayer);
-                }
-                
-                const colorMap = {};
-                const baseColors = ['#8B4513', '#CD853F', '#DEB887', '#F4A460', '#D2691E', '#BC8F8F', '#DAA520', '#B8860B'];
-                let colorIndex = 0;
-                
-                geoData.features.forEach(feature => {
-                    const musym = feature.properties.MUSYM;
-                    if (musym && !colorMap[musym]) {
-                        colorMap[musym] = baseColors[colorIndex % baseColors.length];
-                        colorIndex++;
-                    }
-                });
-                
-                soilLayer = L.geoJSON(geoData, {
-                    style: function(feature) {
-                        const musym = feature.properties.MUSYM || '';
-                        return {
-                            fillColor: colorMap[musym] || '#BC8F8F',
-                            weight: 3,
-                            opacity: 1,
-                            color: '#000',
-                            fillOpacity: 0.4,
-                            dashArray: ''
-                        };
-                    },
-                    onEachFeature: function(feature, layer) {
-                        layer.soilData = feature.properties;
-                        
-                        let popup = '<div style="min-width: 200px; font-size: 13px;">';
-                        popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">Soil Information</h4>';
-                        
-                        if (feature.properties.MUSYM) {
-                            popup += `<b>Map Unit Symbol:</b> ${feature.properties.MUSYM}<br>`;
-                        }
-                        if (feature.properties.MUKEY) {
-                            popup += `<b>MUKEY:</b> ${feature.properties.MUKEY}<br>`;
-                        }
-                        
-                        const info = getSoilInfo(feature.properties.MUSYM);
-                        if (info) {
-                            popup += `<hr style="margin: 8px 0;">`;
-                            if (info.series && !info.series.includes('Map Unit')) {
-                                popup += `<b>Soil Series:</b> ${info.series}<br>`;
-                                popup += `<b>Texture:</b> ${info.texture}<br>`;
-                                popup += `<b>Drainage:</b> ${info.drainage}<br>`;
-                                popup += `<b>Slope:</b> ${info.slope}<br>`;
-                                if (info.ph) popup += `<b>pH Range:</b> ${info.ph}<br>`;
-                            }
-                        }
-                        
-                        popup += '</div>';
-                        layer.bindPopup(popup);
-                    }
-                });
-                
-                if (document.getElementById('soilToggle').checked) {
-                    soilLayer.addTo(map);
-                }
-                
-                const bounds = soilLayer.getBounds();
-                map.fitBounds(bounds, { padding: [50, 50] });
-                
-                let featureCount = 0;
-                const uniqueSoilTypes = new Set();
-                geoData.features.forEach(f => {
-                    featureCount++;
-                    if (f.properties.MUSYM) {
-                        uniqueSoilTypes.add(f.properties.MUSYM);
-                    }
-                });
-                
-                document.getElementById('soilStatus').textContent = `✓ ${featureCount} polygons, ${uniqueSoilTypes.size} soil types`;
-                
-                if (!document.getElementById('soilToggle').checked) {
-                    document.getElementById('soilToggle').checked = true;
-                    soilLayer.addTo(map);
-                }
-                
-                showToast(`Loaded ${featureCount} soil polygons`);
-                
-            } catch (error) {
-                document.getElementById('soilStatus').textContent = 'Error loading file';
-                console.error(error);
-                showToast('Error loading soil data');
-            }
-        }
-        
-        function getSoilInfo(musym) {
-            const soilData = {
-                '79B': { 
-                    series: 'Menfro silt loam', 
-                    texture: 'Silt loam', 
-                    drainage: 'Well drained', 
-                    slope: '0-2% slopes',
-                    ph: '5.5-7.3'
-                },
-                '79C2': { 
-                    series: 'Menfro silt loam', 
-                    texture: 'Silt loam', 
-                    drainage: 'Well drained', 
-                    slope: '2-5% slopes, eroded',
-                    ph: '5.5-7.3'
-                },
-                '79D2': { 
-                    series: 'Menfro silt loam', 
-                    texture: 'Silt loam', 
-                    drainage: 'Well drained', 
-                    slope: '5-10% slopes, eroded',
-                    ph: '5.5-7.3'
-                },
-                '90601': {
-                    series: 'Memphis silt loam',
-                    texture: 'Silt loam',
-                    drainage: 'Well drained',
-                    slope: '0-2% slopes',
-                    ph: '5.1-6.5'
-                },
-                '90021': {
-                    series: 'Memphis silt loam',
-                    texture: 'Silt loam',
-                    drainage: 'Well drained',
-                    slope: '2-5% slopes',
-                    ph: '5.1-6.5'
-                }
-            };
-            
-            if (soilData[musym]) {
-                return soilData[musym];
-            } else {
-                return {
-                    series: `Map Unit ${musym}`,
-                    texture: 'See Web Soil Survey',
-                    drainage: 'See Web Soil Survey',
-                    slope: 'Varies'
-                };
-            }
-        }
-        
-        // Panel toggles
         function toggleAllPanels() {
             const mainContent = document.getElementById('mainPanelContent');
             const layerContent = document.getElementById('layerContent');
@@ -1638,7 +1844,7 @@
                 layerContent.style.display = 'none';
                 document.getElementById('mainPanelToggleBtn').textContent = '+';
                 document.getElementById('layerToggleBtn').textContent = '+';
-                showToast('Panels hidden - Full map view');
+                showToast('Panels hidden');
             } else {
                 mainContent.style.display = 'block';
                 layerContent.style.display = 'block';
@@ -1671,21 +1877,6 @@
             } else {
                 content.style.display = 'none';
                 btn.textContent = '+';
-            }
-        }
-        
-        // Layer toggles
-        function toggleSoilLayer() {
-            if (!soilLayer) {
-                showToast('No soil data loaded');
-                document.getElementById('soilToggle').checked = false;
-                return;
-            }
-            
-            if (document.getElementById('soilToggle').checked) {
-                soilLayer.addTo(map);
-            } else {
-                map.removeLayer(soilLayer);
             }
         }
         
@@ -1724,14 +1915,13 @@
             }
         }
         
-        // Export functions
         function exportCSV() {
             if (!currentGrowerId) {
                 alert('No grower selected');
                 return;
             }
             
-            let csv = 'Grower,Field,Sample_Number,Latitude,Longitude,Soil_Unit,Soil_Series,Date_Time\n';
+            let csv = 'Grower,Field,Sample_Number,Latitude,Longitude,Soil_Unit,Soil_Series,Texture,Drainage,pH,Date_Time\n';
             
             const grower = growers[currentGrowerId];
             for (let fieldId in grower.fields) {
@@ -1745,6 +1935,9 @@
                         csv += `${sample.lng.toFixed(6)},`;
                         csv += `${sample.soilType || ''},`;
                         csv += `"${sample.soilInfo?.series || ''}",`;
+                        csv += `"${sample.soilInfo?.texture || ''}",`;
+                        csv += `"${sample.soilInfo?.drainage || ''}",`;
+                        csv += `"${sample.soilInfo?.ph || ''}",`;
                         csv += `"${new Date(sample.timestamp).toLocaleString()}"\n`;
                     });
                 }
@@ -1758,91 +1951,9 @@
             a.click();
             window.URL.revokeObjectURL(url);
             
-            showToast('CSV exported successfully');
+            showToast('CSV exported');
         }
         
-        function backupData() {
-            const backup = {
-                version: '2.0',
-                timestamp: new Date().toISOString(),
-                growers: growers,
-                currentGrowerId: currentGrowerId,
-                currentFieldId: currentFieldId
-            };
-            
-            const json = JSON.stringify(backup, null, 2);
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `field_sampler_backup_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-            
-            showToast('Backup downloaded');
-        }
-        
-        function restoreData() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            
-            input.onchange = function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = async function(event) {
-                    try {
-                        const backup = JSON.parse(event.target.result);
-                        
-                        if (!backup.growers) {
-                            alert('Invalid backup file');
-                            return;
-                        }
-                        
-                        if (confirm('This will restore data from backup. Continue?')) {
-                            // Clear map
-                            for (let id in fieldBoundaries) {
-                                if (fieldBoundaries[id]) map.removeLayer(fieldBoundaries[id]);
-                            }
-                            sampleMarkers.forEach(item => {
-                                if (item.marker) map.removeLayer(item.marker);
-                            });
-                            
-                            // Restore data
-                            growers = backup.growers;
-                            currentGrowerId = backup.currentGrowerId;
-                            currentFieldId = backup.currentFieldId;
-                            
-                            fieldBoundaries = {};
-                            sampleMarkers = [];
-                            
-                            restoreFieldBoundariesAndSamples();
-                            updateGrowerSelect();
-                            
-                            if (currentGrowerId && growers[currentGrowerId]) {
-                                document.getElementById('growerSelect').value = currentGrowerId;
-                                selectGrower();
-                                if (currentFieldId) {
-                                    selectField(currentFieldId);
-                                }
-                            }
-                            
-                            saveToLocalStorage();
-                            showToast('Data restored from backup');
-                        }
-                    } catch (error) {
-                        alert('Error reading backup file: ' + error.message);
-                    }
-                };
-                reader.readAsText(file);
-            };
-            
-            input.click();
-        }
-        
-        // Utility functions
         function centerOnGPS() {
             if (currentLocation) {
                 map.setView([currentLocation.lat, currentLocation.lng], 18);
@@ -1868,7 +1979,7 @@
             }, 3000);
         }
         
-        // Initialize on load
+        // Initialize
         window.addEventListener('load', initMap);
     </script>
 </body>
