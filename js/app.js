@@ -1,0 +1,2184 @@
+// ========================================
+// CONFIGURATION & INITIALIZATION
+// ========================================
+
+const SUPABASE_URL = 'https://btsqmaguhwksppibatna.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0c3FtYWd1aHdrc3BwaWJhdG5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwODcwOTksImV4cCI6MjA3NjY2MzA5OX0.JIn3WRHg3PvK2OqZBCM6CVfvsGDdHRHke9cUlAbacNA';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Global state
+let map;
+let currentLocation = null;
+let locationMarker = null;
+let soilLayer = null;
+let soilData = null;
+let drawControl = null;
+let isDrawing = false;
+let isSampling = false;
+let isOnline = navigator.onLine;
+
+// Data structures
+let farms = {};
+let currentFarmId = null;
+let currentFieldId = null;
+let fieldBoundaries = {};
+let sampleMarkers = [];
+let activeSamplePlanId = null;
+
+// ========================================
+// SOIL DATA LOOKUP MODULE
+// ========================================
+
+const SOIL_DATABASE = {
+    '79B': { series: 'Menfro silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '0-2% slopes', ph: '5.5-7.3', cropNotes: 'Excellent crop performance. Level fields, minimal erosion risk.' },
+    '79C2': { series: 'Menfro silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '2-5% slopes, eroded', ph: '5.5-7.3', cropNotes: 'Good crop performance. Moderate slope, watch for erosion on bare soil.' },
+    '79D2': { series: 'Menfro silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '5-10% slopes, eroded', ph: '5.5-7.3', cropNotes: 'Fair to good. Steeper slope requires erosion management. Consider terracing.' },
+    '79D3': { series: 'Menfro silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '5-10% slopes, severely eroded', ph: '5.5-7.3', cropNotes: 'Limited by severe erosion. May need soil amendments. Consider permanent cover.' },
+    '79E2': { series: 'Menfro silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '10-15% slopes, eroded', ph: '5.5-7.3', cropNotes: 'Severe limitations. Best suited for hay or pasture. High erosion risk.' },
+    '60001': { series: 'Menfro silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: 'Nearly level', ph: '5.5-7.3', cropNotes: 'Prime farmland. Excellent crop yields expected.' },
+    '60165': { series: 'Menfro silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: 'Gently sloping', ph: '5.5-7.3', cropNotes: 'Very good productivity. Minor erosion concerns.' },
+    '60180': { series: 'Menfro silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: 'Nearly level', ph: '5.5-7.3', cropNotes: 'High productivity potential. Good water holding capacity.' },
+    '60182': { series: 'Menfro silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: 'Nearly level', ph: '5.5-7.3', cropNotes: 'Excellent for row crops. Deep topsoil.' },
+    '90017': { series: 'Memphis silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '0-2% slopes, occasionally flooded', ph: '5.1-6.5', cropNotes: 'Good yields when not flooded. Monitor drainage after heavy rain.' },
+    '90021': { series: 'Memphis silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '2-5% slopes', ph: '5.1-6.5', cropNotes: 'Very good for crops. Slightly lower pH than Menfro, may need lime.' },
+    '90601': { series: 'Memphis silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '0-2% slopes', ph: '5.1-6.5', cropNotes: 'Excellent productivity. Deep silt loam, responds well to management.' },
+    '73098': { series: 'Plato silt loam', texture: 'Silt loam', drainage: 'Moderately well drained', slope: '1-3% slopes', ph: '5.1-6.5', cropNotes: 'Good crop potential. Fragipan limits rooting depth. May have seasonal wetness.' },
+    '73168': { series: 'Swiss gravelly silt loam', texture: 'Gravelly silt loam', drainage: 'Well drained', slope: '3-15% slopes, stony', ph: '5.6-6.5', cropNotes: 'Moderate productivity. Stones and slope limit use. Better suited for pasture or hay.' },
+    '73172': { series: 'Rosati silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '1-5% slopes', ph: '5.6-7.3', cropNotes: 'Very good crop production. Fertile soil with good moisture retention.' },
+    '73135': { series: 'Union silt loam', texture: 'Silt loam', drainage: 'Well drained', slope: '3-8% slopes', ph: '5.1-6.0', cropNotes: 'Good productivity. Naturally acidic, responds well to lime. Watch erosion on slopes.' },
+    '76008': { series: 'Cedargap gravelly silt loam', texture: 'Gravelly silt loam', drainage: 'Well drained', slope: '1-3% slopes, frequently flooded', ph: '6.1-7.3', cropNotes: 'Limited by flooding. Best for pasture or hay. Avoid row crops near streams.' },
+    '73039': { series: 'Glensted silt loam', texture: 'Silt loam', drainage: 'Moderately well drained', slope: '1-3% slopes', ph: '5.1-6.5', cropNotes: 'Good for crops. Fragipan present but deeper than Plato. May need drainage.' },
+    '74634': { series: 'Hartville silt loam', texture: 'Silt loam', drainage: 'Somewhat poorly drained', slope: '3-8% slopes', ph: '5.1-6.5', cropNotes: 'Moderate productivity. Wetness limits spring fieldwork. Consider tile drainage.' },
+    '73170': { series: 'Plato silt loam', texture: 'Silt loam', drainage: 'Moderately well drained', slope: '0-2% slopes', ph: '5.1-6.5', cropNotes: 'Similar to 73098. Fragipan restricts rooting. Good for soybeans if managed properly.' },
+    '73179': { series: 'Viraton silt loam', texture: 'Silt loam', drainage: 'Moderately well drained', slope: '1-5% slopes', ph: '5.1-6.5', cropNotes: 'Fair to good. Fragipan present. Moderate natural fertility.' },
+    '73169': { series: 'Plato-Viraton complex', texture: 'Silt loam', drainage: 'Moderately well drained', slope: '1-5% slopes', ph: '5.1-6.5', cropNotes: 'Variable productivity. Both soils have fragipan. Manage wet areas carefully.' }
+};
+
+function getSoilInfo(musym) {
+    if (SOIL_DATABASE[musym]) {
+        return SOIL_DATABASE[musym];
+    }
+    return {
+        series: `Map Unit ${musym}`,
+        texture: 'See Web Soil Survey',
+        drainage: 'See Web Soil Survey',
+        slope: 'Varies',
+        ph: 'Unknown',
+        cropNotes: 'Contact your local NRCS office for detailed information.'
+    };
+}
+
+// ========================================
+// DATABASE & SYNC LAYER
+// ========================================
+
+async function loadAllFarms() {
+    try {
+        updateSyncStatus('syncing', 'Loading data...');
+        
+        const { data: farmsData, error: farmsError } = await supabase
+            .from('farms')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (farmsError) throw farmsError;
+        
+        farms = {};
+        for (const farm of farmsData) {
+            farms[farm.id] = {
+                id: farm.id,
+                name: farm.name,
+                representativeName: farm.representative_name || '',
+                contactInfo: farm.contact_info || '',
+                notes: farm.notes || '',
+                created: farm.created_at,
+                fields: {}
+            };
+            
+            const { data: fieldsData, error: fieldsError } = await supabase
+                .from('fields')
+                .select('*')
+                .eq('farm_id', farm.id);
+            
+            if (fieldsError) throw fieldsError;
+            
+            for (const field of fieldsData) {
+                farms[farm.id].fields[field.id] = {
+                    id: field.id,
+                    name: field.name,
+                    acres: field.acres,
+                    plotId: field.plot_id || '',
+                    boundary: field.boundary,
+                    geojson_filename: field.geojson_filename,
+                    created: field.created_at,
+                    samplePlans: [],
+                    samples: []
+                };
+                
+                const { data: samplesData, error: samplesError } = await supabase
+                    .from('samples')
+                    .select('*')
+                    .eq('field_id', field.id)
+                    .order('sample_number', { ascending: true });
+                
+                if (samplesError) throw samplesError;
+                
+                const samplePlanMap = {};
+                
+                samplesData.forEach(s => {
+                    const planName = s.identifier || `Sample ${s.sample_number}`;
+                    
+                    if (!samplePlanMap[planName]) {
+                        samplePlanMap[planName] = {
+                            id: crypto.randomUUID(),
+                            name: planName,
+                            testTypes: s.test_types || ['Standard Analysis'],
+                            testToggles: {
+                                Cl: s.test_cl || false,
+                                Co: s.test_co || false,
+                                Mo: s.test_mo || false,
+                                Salts: s.test_salts || false
+                            },
+                            testOptional: s.test_optional || [],
+                            gpsPoints: []
+                        };
+                    }
+                    
+                    samplePlanMap[planName].gpsPoints.push({
+                        id: s.id,
+                        pointNumber: s.sample_number,
+                        lat: parseFloat(s.latitude),
+                        lng: parseFloat(s.longitude),
+                        soilType: s.soil_type,
+                        soilInfo: s.soil_info,
+                        timestamp: s.timestamp,
+                        isManual: s.is_manual,
+                        samplePlanId: samplePlanMap[planName].id
+                    });
+                });
+                
+                farms[farm.id].fields[field.id].samplePlans = Object.values(samplePlanMap);
+            }
+        }
+        
+        updateSyncStatus('synced', 'Synced');
+        saveToLocalStorage();
+        return true;
+    } catch (error) {
+        console.error('Error loading farms:', error);
+        updateSyncStatus('offline', 'Offline mode');
+        loadFromLocalStorage();
+        return false;
+    }
+}
+
+async function saveFarm(farm) {
+    try {
+        const { data, error } = await supabase
+            .from('farms')
+            .upsert({
+                id: farm.id,
+                name: farm.name,
+                representative_name: farm.representativeName || null,
+                contact_info: farm.contactInfo || null,
+                notes: farm.notes || null,
+                created_at: farm.created
+            })
+            .select();
+        
+        if (error) throw error;
+        saveToLocalStorage();
+        return data[0];
+    } catch (error) {
+        console.error('Error saving farm:', error);
+        saveToLocalStorage();
+        throw error;
+    }
+}
+
+async function deleteFarmFromDB(farmId) {
+    try {
+        const { error } = await supabase
+            .from('farms')
+            .delete()
+            .eq('id', farmId);
+        
+        if (error) throw error;
+        saveToLocalStorage();
+        return true;
+    } catch (error) {
+        console.error('Error deleting farm:', error);
+        throw error;
+    }
+}
+
+async function saveField(farmId, field) {
+    try {
+        const { data, error } = await supabase
+            .from('fields')
+            .upsert({
+                id: field.id,
+                farm_id: farmId,
+                name: field.name,
+                acres: field.acres,
+                plot_id: field.plotId || null,
+                boundary: field.boundary,
+                geojson_filename: field.geojson_filename || null,
+                created_at: field.created
+            })
+            .select();
+        
+        if (error) throw error;
+        saveToLocalStorage();
+        return data[0];
+    } catch (error) {
+        console.error('Error saving field:', error);
+        saveToLocalStorage();
+        throw error;
+    }
+}
+
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem('kasFieldData', JSON.stringify({
+            farms: farms,
+            currentFarmId: currentFarmId,
+            currentFieldId: currentFieldId,
+            lastSaved: new Date().toISOString()
+        }));
+    } catch (error) {
+        console.error('Error saving to localStorage:', error);
+    }
+}
+
+function loadFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem('kasFieldData');
+        if (saved) {
+            const data = JSON.parse(saved);
+            farms = data.farms || {};
+            currentFarmId = data.currentFarmId;
+            currentFieldId = data.currentFieldId;
+            return true;
+        }
+    } catch (error) {
+        console.error('Error loading from localStorage:', error);
+    }
+    return false;
+}
+
+function updateSyncStatus(status, text) {
+    const statusEl = document.getElementById('syncStatus');
+    const textEl = document.getElementById('syncStatusText');
+    
+    statusEl.className = 'sync-status ' + status;
+    textEl.textContent = text;
+    
+    if (status === 'synced') {
+        setTimeout(() => {
+            statusEl.style.opacity = '0';
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 300);
+        }, 2000);
+    } else {
+        statusEl.style.display = 'flex';
+        statusEl.style.opacity = '1';
+    }
+}
+
+window.addEventListener('online', async () => {
+    isOnline = true;
+    updateSyncStatus('syncing', 'Reconnected, syncing...');
+    await loadAllFarms();
+    showToast('Back online - data synced!');
+});
+
+window.addEventListener('offline', () => {
+    isOnline = false;
+    updateSyncStatus('offline', 'Offline mode');
+    showToast('Working offline - will sync when reconnected');
+});
+
+async function forceSync() {
+    updateSyncStatus('syncing', 'Syncing...');
+    const success = await loadAllFarms();
+    if (success) {
+        updateFarmSelect();
+        if (currentFarmId) {
+            selectFarm();
+        }
+        showToast('Data synced successfully!');
+    } else {
+        showToast('Sync failed - check connection');
+    }
+}
+
+// ========================================
+// MAP & GPS MODULE
+// ========================================
+
+async function initMap() {
+    map = L.map('map').setView([38.5, -90.5], 10);
+    
+    const satellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 22,
+        attribution: '© Google'
+    }).addTo(map);
+    
+    const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 20,
+        attribution: '© OpenStreetMap'
+    });
+    
+    window.mapLayers = { satellite, streets, current: 'satellite' };
+    
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(updateGPS, handleGPSError, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
+    }
+    
+    document.getElementById('soilUpload').addEventListener('change', handleSoilUpload);
+    
+    const loaded = await loadAllFarms();
+    if (loaded) {
+        updateFarmSelect();
+        restoreFieldBoundariesAndSamples();
+    }
+}
+
+function updateGPS(position) {
+    currentLocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy
+    };
+    
+    let accuracyColor = '#28a745';
+    let accuracyText = 'Good';
+    if (currentLocation.accuracy > 10) {
+        accuracyColor = '#ffc107';
+        accuracyText = 'Fair';
+    }
+    if (currentLocation.accuracy > 30) {
+        accuracyColor = '#dc3545';
+        accuracyText = 'Poor';
+    }
+    
+    document.getElementById('gpsStatus').innerHTML = 
+        `<span style="color: ${accuracyColor};">${currentLocation.lat.toFixed(5)}, ${currentLocation.lng.toFixed(5)} (±${Math.round(currentLocation.accuracy)}m - ${accuracyText})</span>`;
+    
+    if (locationMarker) {
+        locationMarker.setLatLng([currentLocation.lat, currentLocation.lng]);
+    } else {
+        locationMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], {
+            radius: 8,
+            fillColor: '#007AFF',
+            color: 'white',
+            weight: 3,
+            fillOpacity: 1,
+            zIndexOffset: 1000
+        }).addTo(map);
+        
+        window.accuracyCircle = L.circle([currentLocation.lat, currentLocation.lng], {
+            radius: currentLocation.accuracy,
+            color: accuracyColor,
+            fillColor: accuracyColor,
+            fillOpacity: 0.1,
+            weight: 1
+        }).addTo(map);
+    }
+    
+    if (window.accuracyCircle) {
+        window.accuracyCircle.setLatLng([currentLocation.lat, currentLocation.lng]);
+        window.accuracyCircle.setRadius(currentLocation.accuracy);
+        window.accuracyCircle.setStyle({
+            color: accuracyColor,
+            fillColor: accuracyColor
+        });
+    }
+}
+
+function handleGPSError(error) {
+    let errorMsg = 'GPS unavailable';
+    if (error.code === 1) errorMsg = 'GPS permission denied';
+    else if (error.code === 2) errorMsg = 'GPS signal lost';
+    else if (error.code === 3) errorMsg = 'GPS timeout';
+    
+    document.getElementById('gpsStatus').innerHTML = `<span style="color: #dc3545;">${errorMsg}</span>`;
+}
+
+function centerOnGPS() {
+    if (currentLocation) {
+        map.setView([currentLocation.lat, currentLocation.lng], 18);
+    } else {
+        showToast('GPS not available');
+    }
+}
+
+function zoomIn() {
+    map.zoomIn();
+}
+
+function zoomOut() {
+    map.zoomOut();
+}
+
+function restoreFieldBoundariesAndSamples() {
+    for (let farmId in farms) {
+        const farm = farms[farmId];
+        for (let fieldId in farm.fields) {
+            const field = farm.fields[fieldId];
+            if (field.boundary) {
+                const coords = field.boundary.map(c => [c.lat, c.lng]);
+                const polygon = L.polygon(coords, {
+                    color: '#667eea',
+                    weight: 4,
+                    fillOpacity: 0.15,
+                    dashArray: '10, 5'
+                });
+                fieldBoundaries[fieldId] = polygon;
+            }
+            
+            if (field.samplePlans) {
+                field.samplePlans.forEach(plan => {
+                    plan.gpsPoints.forEach(point => {
+                        const sampleId = (field.plotId || field.name.replace(/\s+/g, '')) + `-${plan.name.replace(/\s+/g, '')}`;
+                        
+                        const marker = L.marker([point.lat, point.lng], {
+                            icon: L.divIcon({
+                                html: `<div style="background: #ed8936; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${plan.name.substring(0,2).toUpperCase()}</div>`,
+                                iconSize: [26, 26],
+                                iconAnchor: [13, 13]
+                            })
+                        });
+                        
+                        let popupContent = '<div style="min-width: 200px;">';
+                        popupContent += `<h4 style="margin: 0 0 5px 0; color: #ed8936;">${plan.name}</h4>`;
+                        popupContent += `<b>Sample ID:</b> ${sampleId}<br>`;
+                        popupContent += `<b>Point #:</b> ${point.pointNumber}<br>`;
+                        if (plan.testTypes && plan.testTypes.length > 0) {
+                            popupContent += `<b>Tests:</b> ${plan.testTypes.join(', ')}<br>`;
+                        }
+                        popupContent += `<b>GPS:</b> ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}<br>`;
+                        popupContent += `<b>Time:</b> ${new Date(point.timestamp).toLocaleString()}<br>`;
+                        if (point.soilType) popupContent += `<b>Soil:</b> ${point.soilType}<br>`;
+                        popupContent += '</div>';
+                        
+                        marker.bindPopup(popupContent);
+                        sampleMarkers.push({ 
+                            marker: marker, 
+                            fieldId: fieldId, 
+                            sample: {
+                                ...point,
+                                sampleName: plan.name,
+                                sampleId: sampleId,
+                                testTypes: plan.testTypes
+                            }
+                        });
+                    });
+                });
+            }
+        }
+    }
+    
+    if (currentFarmId && farms[currentFarmId]) {
+        document.getElementById('farmSelect').value = currentFarmId;
+        selectFarm();
+        
+        if (currentFieldId && farms[currentFarmId].fields[currentFieldId]) {
+            selectField(currentFieldId);
+        }
+    }
+}
+
+// ========================================
+// MODAL SYSTEM
+// ========================================
+
+function showModal(title, bodyHTML, onSave) {
+    const overlay = document.getElementById('modalOverlay');
+    const header = document.getElementById('modalHeader');
+    const body = document.getElementById('modalBody');
+    const saveBtn = document.getElementById('modalSaveBtn');
+    
+    header.textContent = title;
+    body.innerHTML = bodyHTML;
+    
+    const newSaveBtn = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+    
+    document.getElementById('modalSaveBtn').onclick = onSave;
+    
+    overlay.classList.add('show');
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('show');
+}
+
+document.addEventListener('click', function(e) {
+    const overlay = document.getElementById('modalOverlay');
+    if (e.target === overlay) {
+        closeModal();
+    }
+});
+
+// ========================================
+// FARM MANAGEMENT MODULE
+// ========================================
+
+function selectFarm() {
+    const select = document.getElementById('farmSelect');
+    currentFarmId = select.value;
+    
+    if (currentFarmId) {
+        document.getElementById('currentFarm').textContent = farms[currentFarmId].name;
+        document.getElementById('fieldSection').style.display = 'block';
+        document.getElementById('samplingSection').style.display = 'block';
+        document.getElementById('exportSection').style.display = 'block';
+        updateFieldList();
+    } else {
+        document.getElementById('currentFarm').textContent = 'None';
+        document.getElementById('fieldSection').style.display = 'none';
+        document.getElementById('samplingSection').style.display = 'none';
+        document.getElementById('exportSection').style.display = 'none';
+        currentFieldId = null;
+    }
+}
+
+async function showAddFarm() {
+    const bodyHTML = `
+        <div class="form-group">
+            <label class="form-label">Farm Name *</label>
+            <input type="text" class="form-input" id="farmName" placeholder="Enter farm name" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Representative Name</label>
+            <input type="text" class="form-input" id="farmRepName" placeholder="Contact person">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Contact Info</label>
+            <input type="text" class="form-input" id="farmContact" placeholder="Phone, email, etc.">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Notes</label>
+            <textarea class="form-textarea" id="farmNotes" placeholder="Additional information"></textarea>
+        </div>
+    `;
+    
+    showModal('Add New Farm', bodyHTML, async function() {
+        const name = document.getElementById('farmName').value.trim();
+        if (!name) {
+            alert('Farm name is required');
+            return;
+        }
+        
+        const id = crypto.randomUUID();
+        const farm = {
+            id: id,
+            name: name,
+            representativeName: document.getElementById('farmRepName').value.trim(),
+            contactInfo: document.getElementById('farmContact').value.trim(),
+            notes: document.getElementById('farmNotes').value.trim(),
+            fields: {},
+            created: new Date().toISOString()
+        };
+        
+        farms[id] = farm;
+        
+        try {
+            await saveFarm(farm);
+            updateFarmSelect();
+            document.getElementById('farmSelect').value = id;
+            selectFarm();
+            showToast(`Farm "${name}" added and synced`);
+        } catch (error) {
+            showToast(`Farm "${name}" added (will sync when online)`);
+        }
+        
+        closeModal();
+    });
+}
+
+async function editFarm() {
+    if (!currentFarmId) {
+        alert('Please select a farm first');
+        return;
+    }
+    
+    const farm = farms[currentFarmId];
+    
+    const bodyHTML = `
+        <div class="form-group">
+            <label class="form-label">Farm Name *</label>
+            <input type="text" class="form-input" id="farmName" value="${farm.name}" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Representative Name</label>
+            <input type="text" class="form-input" id="farmRepName" value="${farm.representativeName || ''}">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Contact Info</label>
+            <input type="text" class="form-input" id="farmContact" value="${farm.contactInfo || ''}">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Notes</label>
+            <textarea class="form-textarea" id="farmNotes">${farm.notes || ''}</textarea>
+        </div>
+    `;
+    
+    showModal('Edit Farm', bodyHTML, async function() {
+        const name = document.getElementById('farmName').value.trim();
+        if (!name) {
+            alert('Farm name is required');
+            return;
+        }
+        
+        farm.name = name;
+        farm.representativeName = document.getElementById('farmRepName').value.trim();
+        farm.contactInfo = document.getElementById('farmContact').value.trim();
+        farm.notes = document.getElementById('farmNotes').value.trim();
+        
+        try {
+            await saveFarm(farm);
+            updateFarmSelect();
+            selectFarm();
+            showToast('Farm updated');
+        } catch (error) {
+            showToast('Farm updated (will sync when online)');
+        }
+        
+        closeModal();
+    });
+}
+
+async function deleteFarm() {
+    if (!currentFarmId) {
+        alert('Please select a farm first');
+        return;
+    }
+    if (confirm(`Delete farm "${farms[currentFarmId].name}" and all fields?`)) {
+        const fields = farms[currentFarmId].fields;
+        for (let fieldId in fields) {
+            if (fieldBoundaries[fieldId]) {
+                map.removeLayer(fieldBoundaries[fieldId]);
+                delete fieldBoundaries[fieldId];
+            }
+        }
+        
+        try {
+            await deleteFarmFromDB(currentFarmId);
+        } catch (error) {
+            console.error('Delete from cloud failed, deleted locally');
+        }
+        
+        delete farms[currentFarmId];
+        currentFarmId = null;
+        currentFieldId = null;
+        updateFarmSelect();
+        selectFarm();
+        showToast('Farm deleted');
+    }
+}
+
+function updateFarmSelect() {
+    const select = document.getElementById('farmSelect');
+    select.innerHTML = '<option value="">-- Select or Add New --</option>';
+    
+    for (let id in farms) {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = farms[id].name;
+        select.appendChild(option);
+    }
+}
+
+// ========================================
+// FIELD MANAGEMENT MODULE
+// ========================================
+
+async function showAddField() {
+    if (!currentFarmId) {
+        alert('Please select a farm first');
+        return;
+    }
+    
+    const bodyHTML = `
+        <div class="form-group">
+            <label class="form-label">Field Name *</label>
+            <input type="text" class="form-input" id="fieldName" placeholder="e.g., North Block, Vineyard A" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Plot ID</label>
+            <input type="text" class="form-input" id="fieldPlotId" placeholder="Unique identifier">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Acres</label>
+            <input type="text" class="form-input" id="fieldAcres" placeholder="Will auto-calculate from boundary">
+            <small style="color: #666; font-size: 11px;">Leave blank to auto-calculate when boundary is drawn</small>
+        </div>
+    `;
+    
+    showModal('Add New Field', bodyHTML, async function() {
+        const name = document.getElementById('fieldName').value.trim();
+        if (!name) {
+            alert('Field name is required');
+            return;
+        }
+        
+        const id = crypto.randomUUID();
+        const field = {
+            id: id,
+            name: name,
+            acres: document.getElementById('fieldAcres').value.trim(),
+            plotId: document.getElementById('fieldPlotId').value.trim(),
+            boundary: null,
+            samplePlans: [],
+            samples: [],
+            created: new Date().toISOString()
+        };
+        
+        farms[currentFarmId].fields[id] = field;
+        
+        try {
+            await saveField(currentFarmId, field);
+            showToast(`Field "${name}" added and synced`);
+        } catch (error) {
+            showToast(`Field "${name}" added (will sync when online)`);
+        }
+        
+        updateFieldList();
+        selectField(id);
+        closeModal();
+    });
+}
+
+async function editField() {
+    if (!currentFieldId) {
+        alert('Please select a field first');
+        return;
+    }
+    
+    const field = farms[currentFarmId].fields[currentFieldId];
+    
+    const bodyHTML = `
+        <div class="form-group">
+            <label class="form-label">Field Name *</label>
+            <input type="text" class="form-input" id="fieldName" value="${field.name}" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Plot ID</label>
+            <input type="text" class="form-input" id="fieldPlotId" value="${field.plotId || ''}">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Acres</label>
+            <input type="text" class="form-input" id="fieldAcres" value="${field.acres || ''}">
+            <small style="color: #666; font-size: 11px;">Auto-calculated from boundary if blank</small>
+        </div>
+    `;
+    
+    showModal('Edit Field', bodyHTML, async function() {
+        const name = document.getElementById('fieldName').value.trim();
+        if (!name) {
+            alert('Field name is required');
+            return;
+        }
+        
+        field.name = name;
+        field.acres = document.getElementById('fieldAcres').value.trim();
+        field.plotId = document.getElementById('fieldPlotId').value.trim();
+        
+        try {
+            await saveField(currentFarmId, field);
+            updateFieldList();
+            selectField(currentFieldId);
+            showToast('Field updated');
+        } catch (error) {
+            showToast('Field updated (will sync when online)');
+        }
+        
+        closeModal();
+    });
+}
+
+async function deleteField() {
+    if (!currentFieldId) {
+        alert('Please select a field first');
+        return;
+    }
+    
+    const field = farms[currentFarmId].fields[currentFieldId];
+    
+    if (confirm(`Delete field "${field.name}" and all samples?`)) {
+        if (fieldBoundaries[currentFieldId]) {
+            map.removeLayer(fieldBoundaries[currentFieldId]);
+            delete fieldBoundaries[currentFieldId];
+        }
+        
+        sampleMarkers = sampleMarkers.filter(item => {
+            if (item.fieldId === currentFieldId) {
+                map.removeLayer(item.marker);
+                return false;
+            }
+            return true;
+        });
+        
+        try {
+            const { error } = await supabase
+                .from('fields')
+                .delete()
+                .eq('id', currentFieldId);
+            
+            if (error) throw error;
+        } catch (error) {
+            console.error('Delete from cloud failed, deleted locally');
+        }
+        
+        delete farms[currentFarmId].fields[currentFieldId];
+        currentFieldId = null;
+        
+        updateFieldList();
+        document.getElementById('currentField').textContent = 'None';
+        document.getElementById('activeFieldName').textContent = 'None';
+        document.getElementById('sampleCount').textContent = '0';
+        
+        saveToLocalStorage();
+        showToast('Field deleted');
+    }
+}
+
+function calculateAcresFromBoundary(polygon) {
+    const latlngs = polygon.getLatLngs()[0];
+    
+    let area = 0;
+    const R = 6371000;
+    
+    for (let i = 0; i < latlngs.length; i++) {
+        const p1 = latlngs[i];
+        const p2 = latlngs[(i + 1) % latlngs.length];
+        
+        const lat1 = p1.lat * Math.PI / 180;
+        const lat2 = p2.lat * Math.PI / 180;
+        const lng1 = p1.lng * Math.PI / 180;
+        const lng2 = p2.lng * Math.PI / 180;
+        
+        area += (lng2 - lng1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+    }
+    
+    area = Math.abs(area * R * R / 2);
+    const acres = area / 4046.86;
+    
+    return acres.toFixed(2);
+}
+
+function updateFieldList() {
+    const container = document.getElementById('fieldList');
+    const fields = farms[currentFarmId]?.fields || {};
+    const fieldIds = Object.keys(fields);
+    
+    if (fieldIds.length === 0) {
+        container.innerHTML = '<div class="no-data">No fields added yet</div>';
+        return;
+    }
+    
+    container.innerHTML = fieldIds.map(id => {
+        const field = fields[id];
+        const isActive = currentFieldId === id;
+        
+        let sampleInfo = '';
+        if (field.samplePlans && field.samplePlans.length > 0) {
+            let totalPoints = field.samplePlans.reduce((sum, plan) => sum + plan.gpsPoints.length, 0);
+            sampleInfo = ` • ${field.samplePlans.length} sample${field.samplePlans.length !== 1 ? 's' : ''}, ${totalPoints} GPS point${totalPoints !== 1 ? 's' : ''}`;
+        }
+        
+        return `
+            <div class="field-item ${isActive ? 'active' : ''}" onclick="selectField('${id}')">
+                <div class="field-name">${field.name}</div>
+                <div class="field-details">
+                    ${field.plotId ? 'Plot ID: ' + field.plotId : 'No Plot ID'}
+                    ${field.acres ? ' • ' + field.acres + ' acres' : ''}
+                    ${field.boundary ? ' • Boundary set' : ''}${sampleInfo}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function selectField(fieldId) {
+    currentFieldId = fieldId;
+    const field = farms[currentFarmId].fields[fieldId];
+    
+    document.getElementById('currentField').textContent = field.name;
+    document.getElementById('activeFieldName').textContent = field.name;
+    
+    if (!field.samplePlans) {
+        field.samplePlans = [];
+    }
+    
+    updateFieldList();
+    updateSamplePlanList();
+    updateSampleCount();
+    
+    for (let id in fieldBoundaries) {
+        if (fieldBoundaries[id]) {
+            if (id === fieldId) {
+                fieldBoundaries[id].addTo(map);
+            } else {
+                map.removeLayer(fieldBoundaries[id]);
+            }
+        }
+    }
+    
+    sampleMarkers.forEach(item => {
+        if (item.fieldId === fieldId && document.getElementById('sampleToggle').checked) {
+            item.marker.addTo(map);
+        } else {
+            map.removeLayer(item.marker);
+        }
+    });
+    
+    if (fieldBoundaries[fieldId]) {
+        map.fitBounds(fieldBoundaries[fieldId].getBounds(), { padding: [50, 50] });
+    }
+}
+
+async function drawFieldBoundary() {
+    if (!currentFieldId) {
+        alert('Please select a field first');
+        return;
+    }
+    
+    if (isDrawing) {
+        if (drawControl) drawControl.disable();
+        isDrawing = false;
+        document.getElementById('drawFieldBtn').textContent = '📐 Draw Field Boundary';
+        document.getElementById('drawFieldBtn').classList.remove('btn-danger');
+        document.getElementById('drawFieldBtn').classList.add('btn-success');
+        return;
+    }
+    
+    isDrawing = true;
+    document.getElementById('drawFieldBtn').textContent = 'Cancel Drawing';
+    document.getElementById('drawFieldBtn').classList.remove('btn-success');
+    document.getElementById('drawFieldBtn').classList.add('btn-danger');
+    
+    drawControl = new L.Draw.Polygon(map, {
+        shapeOptions: {
+            color: '#667eea',
+            weight: 4,
+            fillOpacity: 0.15,
+            dashArray: '10, 5'
+        }
+    });
+    
+    drawControl.enable();
+    
+    map.once('draw:created', async function(e) {
+        const layer = e.layer;
+        
+        if (fieldBoundaries[currentFieldId]) {
+            map.removeLayer(fieldBoundaries[currentFieldId]);
+        }
+        
+        fieldBoundaries[currentFieldId] = layer;
+        layer.addTo(map);
+        
+        const coords = layer.getLatLngs()[0].map(ll => ({
+            lat: ll.lat,
+            lng: ll.lng
+        }));
+        
+        const calculatedAcres = calculateAcresFromBoundary(layer);
+        
+        farms[currentFarmId].fields[currentFieldId].boundary = coords;
+        farms[currentFarmId].fields[currentFieldId].acres = calculatedAcres;
+        
+        isDrawing = false;
+        document.getElementById('drawFieldBtn').textContent = '📐 Draw Field Boundary';
+        document.getElementById('drawFieldBtn').classList.remove('btn-danger');
+        document.getElementById('drawFieldBtn').classList.add('btn-success');
+        
+        try {
+            await saveField(currentFarmId, farms[currentFarmId].fields[currentFieldId]);
+            showToast(`Field boundary saved - ${calculatedAcres} acres calculated`);
+        } catch (error) {
+            showToast(`Field boundary saved - ${calculatedAcres} acres (will sync when online)`);
+        }
+        
+        updateFieldList();
+    });
+}
+
+function zoomToField() {
+    if (currentFieldId && fieldBoundaries[currentFieldId]) {
+        map.fitBounds(fieldBoundaries[currentFieldId].getBounds(), { padding: [50, 50] });
+    } else {
+        showToast('No field boundary to zoom to');
+    }
+}
+
+// ========================================
+// SAMPLING MODULE
+// ========================================
+
+function addSamplePlan() {
+    if (!currentFieldId) {
+        alert('Please select a field first');
+        return;
+    }
+    
+    const nameInput = document.getElementById('newSampleName');
+    const name = nameInput.value.trim();
+    
+    if (!name) {
+        alert('Please enter a sample name');
+        return;
+    }
+    
+    const field = farms[currentFarmId].fields[currentFieldId];
+    if (!field.samplePlans) {
+        field.samplePlans = [];
+    }
+    
+    const samplePlan = {
+        id: crypto.randomUUID(),
+        name: name,
+        testToggles: { Cl: false, Co: false, Mo: false, Salts: false },
+        testOptional: [],
+        gpsPoints: []
+    };
+    
+    field.samplePlans.push(samplePlan);
+    nameInput.value = '';
+    
+    updateSamplePlanList();
+    saveToLocalStorage();
+    showToast(`Sample "${name}" added`);
+}
+
+function updateSamplePlanList() {
+    const container = document.getElementById('samplePlanList');
+    const field = farms[currentFarmId]?.fields[currentFieldId];
+    
+    if (!field || !field.samplePlans || field.samplePlans.length === 0) {
+        container.innerHTML = '<div class="no-data" style="padding: 15px;">No samples added yet. Click + Add to create samples.</div>';
+        return;
+    }
+    
+    container.innerHTML = field.samplePlans.map(plan => {
+        const isActive = activeSamplePlanId === plan.id;
+        
+        let testSummary = 'Standard';
+        const activeToggles = [];
+        if (plan.testToggles) {
+            if (plan.testToggles.Cl) activeToggles.push('Cl');
+            if (plan.testToggles.Co) activeToggles.push('Co');
+            if (plan.testToggles.Mo) activeToggles.push('Mo');
+            if (plan.testToggles.Salts) activeToggles.push('Salts');
+        }
+        if (activeToggles.length > 0) {
+            testSummary += ` + ${activeToggles.join(', ')}`;
+        }
+        if (plan.testOptional && plan.testOptional.length > 0) {
+            testSummary += ` + ${plan.testOptional.length} more`;
+        }
+        
+        return `
+            <div class="sample-plan-item ${isActive ? 'active' : ''}" onclick="selectSamplePlan('${plan.id}')">
+                <span class="sample-plan-delete" onclick="event.stopPropagation(); deleteSamplePlan('${plan.id}')">×</span>
+                <div class="sample-plan-name">${plan.name}</div>
+                <div class="sample-plan-tests">Tests: ${testSummary}</div>
+                <div class="sample-plan-count">${plan.gpsPoints.length} GPS point${plan.gpsPoints.length !== 1 ? 's' : ''} collected</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function selectSamplePlan(planId) {
+    const field = farms[currentFarmId].fields[currentFieldId];
+    const plan = field.samplePlans.find(p => p.id === planId);
+    
+    if (!plan) return;
+    
+    if (!plan.testToggles) {
+        plan.testToggles = { Cl: false, Co: false, Mo: false, Salts: false };
+    }
+    if (!plan.testOptional) {
+        plan.testOptional = [];
+    }
+    
+    const bodyHTML = `
+        <div class="form-group">
+            <label class="form-label">Sample Name</label>
+            <input type="text" class="form-input" id="editSampleName" value="${plan.name}">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Standard Tests (Always Included)</label>
+            <div style="padding: 10px; background: #e8f4f8; border-radius: 6px; font-size: 12px; color: #0c5460;">
+                B, Ca, Cu, Fe, K, Mg, Mn, Na, OM, P2, pH (Water), S, Zn
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Common Optional Tests (Toggles)</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                    <input type="checkbox" id="testCl" ${plan.testToggles.Cl ? 'checked' : ''} 
+                           style="margin-right: 8px; width: 18px; height: 18px;">
+                    <span>Cl (Chloride)</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                    <input type="checkbox" id="testCo" ${plan.testToggles.Co ? 'checked' : ''} 
+                           style="margin-right: 8px; width: 18px; height: 18px;">
+                    <span>Co (Cobalt)</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                    <input type="checkbox" id="testMo" ${plan.testToggles.Mo ? 'checked' : ''} 
+                           style="margin-right: 8px; width: 18px; height: 18px;">
+                    <span>Mo (Molybdenum)</span>
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                    <input type="checkbox" id="testSalts" ${plan.testToggles.Salts ? 'checked' : ''} 
+                           style="margin-right: 8px; width: 18px; height: 18px;">
+                    <span>Salts</span>
+                </label>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Additional Optional Tests (Multi-Select)</label>
+            <select multiple class="form-select" id="testOptional" 
+                    style="height: 180px; font-size: 13px;" size="12">
+                <option value="BulkDen" ${plan.testOptional.includes('BulkDen') ? 'selected' : ''}>Bulk Density</option>
+                <option value="Morgan" ${plan.testOptional.includes('Morgan') ? 'selected' : ''}>Morgan</option>
+                <option value="NH3" ${plan.testOptional.includes('NH3') ? 'selected' : ''}>NH3</option>
+                <option value="NO3" ${plan.testOptional.includes('NO3') ? 'selected' : ''}>NO3</option>
+                <option value="Olsen" ${plan.testOptional.includes('Olsen') ? 'selected' : ''}>Olsen (pH > 7.5)</option>
+                <option value="P1" ${plan.testOptional.includes('P1') ? 'selected' : ''}>P1 (Bray P1)</option>
+                <option value="PH2" ${plan.testOptional.includes('PH2') ? 'selected' : ''}>pH2 (Salt)</option>
+                <option value="PH3" ${plan.testOptional.includes('PH3') ? 'selected' : ''}>pH3 (Buffer)</option>
+                <option value="PRET" ${plan.testOptional.includes('PRET') ? 'selected' : ''}>PRET</option>
+                <option value="Other" ${plan.testOptional.includes('Other') ? 'selected' : ''}>Other</option>
+                <option value="SSC" ${plan.testOptional.includes('SSC') ? 'selected' : ''}>Sand Silt Clay</option>
+                <option value="Se" ${plan.testOptional.includes('Se') ? 'selected' : ''}>Se (Selenium)</option>
+                <option value="Si" ${plan.testOptional.includes('Si') ? 'selected' : ''}>Si (Silicon)</option>
+                <option value="PLFA" ${plan.testOptional.includes('PLFA') ? 'selected' : ''}>PLFA</option>
+                <option value="TotalP" ${plan.testOptional.includes('TotalP') ? 'selected' : ''}>Total P</option>
+            </select>
+            <small style="color: #666; font-size: 11px; display: block; margin-top: 4px;">
+                Hold Ctrl/Cmd to select multiple
+            </small>
+        </div>
+        
+        <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 12px; color: #666;">
+            <b>📝 Note:</b> Changes apply to this sample and all its GPS points.
+        </div>
+    `;
+    
+    showModal(`Edit Sample: ${plan.name}`, bodyHTML, function() {
+        const newName = document.getElementById('editSampleName').value.trim();
+        if (!newName) {
+            alert('Sample name cannot be empty');
+            return;
+        }
+        
+        plan.testToggles = {
+            Cl: document.getElementById('testCl').checked,
+            Co: document.getElementById('testCo').checked,
+            Mo: document.getElementById('testMo').checked,
+            Salts: document.getElementById('testSalts').checked
+        };
+        
+        const optionalSelect = document.getElementById('testOptional');
+        plan.testOptional = Array.from(optionalSelect.selectedOptions).map(opt => opt.value);
+        
+        plan.name = newName;
+        
+        updateSamplePlanList();
+        saveToLocalStorage();
+        showToast('Sample updated');
+        closeModal();
+    });
+}
+
+function deleteSamplePlan(planId) {
+    if (!confirm('Delete this sample and all its GPS points?')) return;
+    
+    const field = farms[currentFarmId].fields[currentFieldId];
+    const planIndex = field.samplePlans.findIndex(p => p.id === planId);
+    
+    if (planIndex === -1) return;
+    
+    sampleMarkers = sampleMarkers.filter(item => {
+        if (item.sample && item.sample.samplePlanId === planId) {
+            map.removeLayer(item.marker);
+            return false;
+        }
+        return true;
+    });
+    
+    field.samplePlans.splice(planIndex, 1);
+    
+    if (activeSamplePlanId === planId) {
+        activeSamplePlanId = null;
+    }
+    
+    updateSamplePlanList();
+    updateSampleCount();
+    saveToLocalStorage();
+    showToast('Sample deleted');
+}
+
+function updateSampleCount() {
+    const field = farms[currentFarmId]?.fields[currentFieldId];
+    if (!field || !field.samplePlans) {
+        document.getElementById('sampleCount').textContent = '0';
+        return;
+    }
+    
+    let totalPoints = 0;
+    field.samplePlans.forEach(plan => {
+        totalPoints += plan.gpsPoints.length;
+    });
+    
+    document.getElementById('sampleCount').textContent = totalPoints;
+}
+
+function startSampling() {
+    if (!currentFieldId) {
+        alert('Please select a field first');
+        return;
+    }
+    
+    const field = farms[currentFarmId].fields[currentFieldId];
+    if (!field.samplePlans || field.samplePlans.length === 0) {
+        alert('Please add at least one sample first');
+        return;
+    }
+    
+    isSampling = !isSampling;
+    const btn = document.querySelector('.btn-warning');
+    
+    if (isSampling) {
+        btn.textContent = 'Stop Sampling';
+        btn.classList.add('btn-danger');
+        btn.classList.remove('btn-warning');
+        document.getElementById('dropPinBtn').classList.add('active');
+        showToast('Sampling mode active - Click 🎯 to drop pins');
+    } else {
+        btn.textContent = 'Start Sampling';
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-warning');
+        document.getElementById('dropPinBtn').classList.remove('active');
+        activeSamplePlanId = null;
+        updateSamplePlanList();
+        showToast('Sampling mode stopped');
+    }
+}
+
+function dropPin() {
+    if (!isSampling) {
+        showToast('Start sampling mode first');
+        return;
+    }
+    
+    if (!currentFieldId) {
+        showToast('Select a field first');
+        return;
+    }
+    
+    const field = farms[currentFarmId].fields[currentFieldId];
+    if (!field.samplePlans || field.samplePlans.length === 0) {
+        alert('No sample plans available');
+        return;
+    }
+    
+    const bodyHTML = `
+        <div class="form-group">
+            <label class="form-label">Which sample is this GPS point for?</label>
+            <select class="form-select" id="selectSamplePlanForPin">
+                <option value="">-- Select Sample --</option>
+                ${field.samplePlans.map(plan => {
+                    let testSummary = 'Standard';
+                    const activeToggles = [];
+                    if (plan.testToggles) {
+                        if (plan.testToggles.Cl) activeToggles.push('Cl');
+                        if (plan.testToggles.Co) activeToggles.push('Co');
+                        if (plan.testToggles.Mo) activeToggles.push('Mo');
+                        if (plan.testToggles.Salts) activeToggles.push('Salts');
+                    }
+                    if (activeToggles.length > 0) testSummary += ' + ' + activeToggles.join(', ');
+                    return `<option value="${plan.id}">${plan.name} (${testSummary})</option>`;
+                }).join('')}
+            </select>
+        </div>
+        <div style="margin-top: 10px; padding: 8px; background: #e8f4f8; border-radius: 4px; font-size: 12px; color: #0c5460;">
+            <b>Tip:</b> You can add multiple GPS points to the same sample.
+        </div>
+    `;
+    
+    showModal('Select Sample for GPS Point', bodyHTML, function() {
+        const selectedPlanId = document.getElementById('selectSamplePlanForPin').value;
+        if (!selectedPlanId) {
+            alert('Please select a sample');
+            return;
+        }
+        
+        activeSamplePlanId = selectedPlanId;
+        updateSamplePlanList();
+        closeModal();
+        
+        if (!currentLocation) {
+            showToast('Click on map to place pin');
+            map.once('click', function(e) {
+                placeSamplePin(e.latlng.lat, e.latlng.lng, true);
+            });
+        } else {
+            placeSamplePin(currentLocation.lat, currentLocation.lng, false);
+        }
+    });
+}
+
+async function placeSamplePin(lat, lng, isManual) {
+    if (!activeSamplePlanId) {
+        showToast('Please select a sample first');
+        return;
+    }
+    
+    const field = farms[currentFarmId].fields[currentFieldId];
+    const plan = field.samplePlans.find(p => p.id === activeSamplePlanId);
+    
+    if (!plan) {
+        showToast('Sample plan not found');
+        return;
+    }
+    
+    let soilType = '';
+    let soilInfo = null;
+    
+    if (soilLayer) {
+        const point = L.latLng(lat, lng);
+        soilLayer.eachLayer(function(layer) {
+            if (layer.getBounds && layer.getBounds().contains(point)) {
+                if (layer.soilData) {
+                    soilType = layer.soilData.MUSYM || '';
+                    soilInfo = getSoilInfo(soilType);
+                }
+            }
+        });
+    }
+    
+    const pointNumber = plan.gpsPoints.length + 1;
+    
+    let sampleId = field.plotId || field.name.replace(/\s+/g, '');
+    sampleId += `-${plan.name.replace(/\s+/g, '')}`;
+    
+    const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+            html: `<div style="background: #ed8936; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${plan.name.substring(0,2).toUpperCase()}</div>`,
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
+        })
+    }).addTo(map);
+    
+    let popupContent = '<div style="min-width: 220px;">';
+    popupContent += `<h4 style="margin: 0 0 5px 0; color: #ed8936;">${plan.name}</h4>`;
+    popupContent += `<b>Sample ID:</b> ${sampleId}<br>`;
+    popupContent += `<b>Point #:</b> ${pointNumber}<br>`;
+    
+    let testSummary = 'Standard';
+    const activeToggles = [];
+    if (plan.testToggles) {
+        if (plan.testToggles.Cl) activeToggles.push('Cl');
+        if (plan.testToggles.Co) activeToggles.push('Co');
+        if (plan.testToggles.Mo) activeToggles.push('Mo');
+        if (plan.testToggles.Salts) activeToggles.push('Salts');
+    }
+    if (activeToggles.length > 0) testSummary += ' + ' + activeToggles.join(', ');
+    if (plan.testOptional && plan.testOptional.length > 0) testSummary += ` + ${plan.testOptional.length} more`;
+    
+    popupContent += `<b>Tests:</b><br><span style="font-size: 11px;">${testSummary}</span><br>`;
+    
+    if (soilType) {
+        popupContent += `<hr style="margin: 5px 0;"><b>Soil Unit:</b> ${soilType}<br>`;
+        if (soilInfo) {
+            popupContent += `<b>Series:</b> ${soilInfo.series}<br>`;
+            popupContent += `<b>Texture:</b> ${soilInfo.texture}<br>`;
+            if (soilInfo.cropNotes) {
+                popupContent += `<hr style="margin: 5px 0;"><i style="font-size: 11px;">${soilInfo.cropNotes}</i>`;
+            }
+        }
+    }
+    popupContent += `<hr style="margin: 5px 0;"><b>GPS:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>`;
+    popupContent += `<b>Time:</b> ${new Date().toLocaleString()}<br>`;
+    if (isManual) popupContent += `<i style="color: #666;">Manual placement</i>`;
+    popupContent += '</div>';
+    
+    marker.bindPopup(popupContent);
+    
+    const gpsPoint = {
+        id: crypto.randomUUID(),
+        pointNumber: pointNumber,
+        lat: lat,
+        lng: lng,
+        soilType: soilType,
+        soilInfo: soilInfo,
+        timestamp: new Date().toISOString(),
+        isManual: isManual,
+        samplePlanId: activeSamplePlanId
+    };
+    
+    plan.gpsPoints.push(gpsPoint);
+    
+    sampleMarkers.push({ 
+        marker: marker, 
+        fieldId: currentFieldId, 
+        sample: {
+            ...gpsPoint,
+            sampleName: plan.name,
+            sampleId: sampleId,
+            testToggles: plan.testToggles,
+            testOptional: plan.testOptional
+        }
+    });
+    
+    updateSamplePlanList();
+    updateSampleCount();
+    saveToLocalStorage();
+    
+    try {
+        await saveSamplePoint(currentFieldId, plan, gpsPoint, sampleId);
+        showToast(`GPS point added to "${plan.name}"${soilType ? ' - Soil: ' + soilType : ''}`);
+    } catch (error) {
+        showToast(`GPS point added (will sync when online)${soilType ? ' - Soil: ' + soilType : ''}`);
+    }
+}
+
+async function saveSamplePoint(fieldId, plan, gpsPoint, sampleId) {
+    try {
+        const { data, error } = await supabase
+            .from('samples')
+            .insert({
+                field_id: fieldId,
+                sample_number: gpsPoint.pointNumber,
+                sample_id: sampleId,
+                identifier: plan.name,
+                latitude: gpsPoint.lat,
+                longitude: gpsPoint.lng,
+                soil_type: gpsPoint.soilType || null,
+                soil_info: gpsPoint.soilInfo || null,
+                timestamp: gpsPoint.timestamp,
+                collect_datetime: gpsPoint.timestamp,
+                is_manual: gpsPoint.isManual,
+                test_types: [],
+                test_cl: plan.testToggles?.Cl || false,
+                test_co: plan.testToggles?.Co || false,
+                test_mo: plan.testToggles?.Mo || false,
+                test_salts: plan.testToggles?.Salts || false,
+                test_optional: plan.testOptional || []
+            })
+            .select();
+        
+        if (error) throw error;
+        saveToLocalStorage();
+        return data[0];
+    } catch (error) {
+        console.error('Error saving sample:', error);
+        saveToLocalStorage();
+        throw error;
+    }
+}
+
+// ========================================
+// SOIL DATA MODULE
+// ========================================
+
+// Helper function to determine if a color is light or dark
+function isLightColor(color) {
+    // Convert hex to RGB
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Calculate luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+}
+
+function handleSoilUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    document.getElementById('soilStatus').textContent = 'Loading...';
+    
+    const fileName = file.name.toLowerCase();
+    
+    if (fileName.endsWith('.zip')) {
+        // Handle zipped shapefile
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            loadShapefile(event.target.result, file.name);
+        };
+        reader.readAsArrayBuffer(file);
+    } else if (fileName.endsWith('.json') || fileName.endsWith('.geojson')) {
+        // Handle GeoJSON files
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            loadSoilGeoJSON(event.target.result, file.name);
+        };
+        reader.readAsText(file);
+    } else {
+        document.getElementById('soilStatus').textContent = 'Unsupported file type';
+        showToast('Please upload a .zip shapefile, .json, or .geojson file');
+    }
+}
+
+async function loadSoilGeoJSON(jsonString, filename) {
+    try {
+        const geoData = JSON.parse(jsonString);
+        soilData = geoData;
+        
+        if (soilLayer) {
+            map.removeLayer(soilLayer);
+        }
+        
+        // Auto-detect data type by checking properties
+        let dataType = 'unknown';
+        let zoneField = null;
+        
+        if (geoData.features && geoData.features.length > 0) {
+            const props = geoData.features[0].properties;
+            
+            // Check for EC zone data
+            if (props.ec_zone || props.EC_ZONE || props.EC_Zone || props.zone || props.Zone || props.ZONE) {
+                dataType = 'ec_zone';
+                zoneField = props.ec_zone ? 'ec_zone' : 
+                           props.EC_ZONE ? 'EC_ZONE' : 
+                           props.EC_Zone ? 'EC_Zone' :
+                           props.zone ? 'zone' :
+                           props.Zone ? 'Zone' : 'ZONE';
+            }
+            // Check for SSURGO soil data
+            else if (props.MUSYM || props.musym) {
+                dataType = 'ssurgo';
+                zoneField = props.MUSYM ? 'MUSYM' : 'musym';
+            }
+            // Generic zone/management data
+            else if (props.name || props.Name || props.NAME || props.label || props.Label) {
+                dataType = 'generic';
+                zoneField = props.name ? 'name' : 
+                           props.Name ? 'Name' : 
+                           props.NAME ? 'NAME' :
+                           props.label ? 'label' : 'Label';
+            }
+        }
+        
+        const colorMap = {};
+        let baseColors;
+        
+        // Set colors based on data type
+        if (dataType === 'ec_zone') {
+            // Distinct colors for EC zones (typically A, B, C, D)
+            baseColors = {
+                'A': '#DC143C',  // Red (Crimson)
+                'B': '#DAA520',  // Tan/Yellow (Goldenrod)
+                'C': '#32CD32',  // Green (Lime Green)
+                'D': '#228B22',  // Dark Green (Forest Green)
+                'E': '#4D96FF',  // Blue (if needed)
+                'F': '#9D4EDD'   // Purple (if needed)
+            };
+        } else if (dataType === 'ssurgo') {
+            // Brown tones for soil
+            baseColors = ['#8B4513', '#CD853F', '#DEB887', '#F4A460', '#D2691E', '#BC8F8F', '#DAA520', '#B8860B'];
+        } else {
+            // Colorful palette for generic zones
+            baseColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
+        }
+        
+        let colorIndex = 0;
+        
+        // Build color map
+        geoData.features.forEach(feature => {
+            const zoneValue = zoneField ? feature.properties[zoneField] : null;
+            if (zoneValue && !colorMap[zoneValue]) {
+                if (dataType === 'ec_zone' && typeof baseColors === 'object') {
+                    // Use predefined colors for specific zones
+                    colorMap[zoneValue] = baseColors[zoneValue] || baseColors[zoneValue.toUpperCase()] || '#999999';
+                } else if (Array.isArray(baseColors)) {
+                    colorMap[zoneValue] = baseColors[colorIndex % baseColors.length];
+                    colorIndex++;
+                } else {
+                    colorMap[zoneValue] = '#999999';
+                }
+            }
+        });
+        
+        soilLayer = L.geoJSON(geoData, {
+            style: function(feature) {
+                const zoneValue = zoneField ? feature.properties[zoneField] : '';
+                const fillColor = colorMap[zoneValue] || '#BC8F8F';
+                
+                return {
+                    fillColor: fillColor,
+                    weight: 2,
+                    opacity: 1,
+                    color: '#000',
+                    fillOpacity: 0.45,
+                    dashArray: ''
+                };
+            },
+            onEachFeature: function(feature, layer) {
+                layer.soilData = feature.properties;
+                
+                let popup = '<div style="min-width: 220px; font-size: 13px;">';
+                
+                // Build popup based on data type
+                if (dataType === 'ec_zone') {
+                    const zone = feature.properties[zoneField] || 'Unknown';
+                    popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">EC Zone Information</h4>';
+                    popup += `<div style="display: flex; align-items: center; margin-bottom: 8px;">`;
+                    popup += `<div style="width: 30px; height: 30px; background: ${colorMap[zone]}; border: 2px solid #000; border-radius: 4px; margin-right: 10px;"></div>`;
+                    popup += `<div style="font-size: 18px; font-weight: bold;">Zone ${zone}</div>`;
+                    popup += `</div>`;
+                    
+                    // Show any other available properties
+                    Object.keys(feature.properties).forEach(key => {
+                        if (key !== zoneField && feature.properties[key] !== null && feature.properties[key] !== '') {
+                            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            popup += `<b>${displayKey}:</b> ${feature.properties[key]}<br>`;
+                        }
+                    });
+                    
+                } else if (dataType === 'ssurgo') {
+                    popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">Soil Information</h4>';
+                    
+                    if (feature.properties[zoneField]) {
+                        popup += `<b>Map Unit:</b> ${feature.properties[zoneField]}<br>`;
+                    }
+                    
+                    const info = getSoilInfo(feature.properties[zoneField]);
+                    if (info) {
+                        popup += `<hr style="margin: 8px 0;">`;
+                        popup += `<b>Soil Series:</b> ${info.series}<br>`;
+                        popup += `<b>Texture:</b> ${info.texture}<br>`;
+                        popup += `<b>Drainage:</b> ${info.drainage}<br>`;
+                        popup += `<b>Slope:</b> ${info.slope}<br>`;
+                        if (info.ph) popup += `<b>pH Range:</b> ${info.ph}<br>`;
+                        if (info.cropNotes && !info.cropNotes.includes('Web Soil Survey')) {
+                            popup += `<hr style="margin: 8px 0;">`;
+                            popup += `<i style="font-size: 11px; color: #555;">${info.cropNotes}</i>`;
+                        }
+                    }
+                    
+                } else {
+                    // Generic data
+                    popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">Zone Information</h4>';
+                    
+                    Object.keys(feature.properties).forEach(key => {
+                        if (feature.properties[key] !== null && feature.properties[key] !== '') {
+                            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            popup += `<b>${displayKey}:</b> ${feature.properties[key]}<br>`;
+                        }
+                    });
+                }
+                
+                popup += '</div>';
+                layer.bindPopup(popup);
+                
+                // Add labels for EC zones
+                if (dataType === 'ec_zone' && zoneField) {
+                    const zoneValue = feature.properties[zoneField];
+                    if (zoneValue) {
+                        const center = layer.getBounds().getCenter();
+                        const zoneColor = colorMap[zoneValue] || '#000';
+                        
+                        // Create a contrasting text color
+                        const textColor = isLightColor(zoneColor) ? '#000' : '#fff';
+                        
+                        const labelIcon = L.divIcon({
+                            className: 'zone-label',
+                            html: `<div style="
+                                background: ${zoneColor};
+                                color: ${textColor};
+                                padding: 4px 8px;
+                                border-radius: 4px;
+                                border: 2px solid #000;
+                                font-weight: bold;
+                                font-size: 14px;
+                                text-align: center;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                                white-space: nowrap;
+                            ">Zone ${zoneValue}</div>`,
+                            iconSize: [60, 24],
+                            iconAnchor: [30, 12]
+                        });
+                        
+                        const labelMarker = L.marker(center, {
+                            icon: labelIcon,
+                            interactive: false,
+                            zIndexOffset: 1000
+                        });
+                        
+                        // Store label with the layer for toggling
+                        layer.zoneLabel = labelMarker;
+                    }
+                }
+            }
+        });
+        
+        if (document.getElementById('soilToggle').checked) {
+            soilLayer.addTo(map);
+            // Add zone labels if it's EC data
+            if (dataType === 'ec_zone') {
+                soilLayer.eachLayer(layer => {
+                    if (layer.zoneLabel) {
+                        layer.zoneLabel.addTo(map);
+                    }
+                });
+            }
+        }
+        
+        const bounds = soilLayer.getBounds();
+        map.fitBounds(bounds, { padding: [50, 50] });
+        
+        let featureCount = 0;
+        const uniqueZones = new Set();
+        geoData.features.forEach(f => {
+            featureCount++;
+            if (zoneField && f.properties[zoneField]) {
+                uniqueZones.add(f.properties[zoneField]);
+            }
+        });
+        
+        // Create status message based on data type
+        let statusMsg = `✓ ${featureCount} polygons`;
+        let toastMsg = `Loaded ${featureCount} polygons`;
+        
+        if (dataType === 'ec_zone') {
+            statusMsg += `, ${uniqueZones.size} EC zones: ${Array.from(uniqueZones).sort().join(', ')}`;
+            toastMsg = `Loaded ${uniqueZones.size} EC zones (${Array.from(uniqueZones).sort().join(', ')})`;
+        } else if (dataType === 'ssurgo') {
+            statusMsg += `, ${uniqueZones.size} soil types`;
+            toastMsg = `Loaded ${featureCount} soil polygons`;
+        } else {
+            statusMsg += `, ${uniqueZones.size} zones`;
+            toastMsg = `Loaded ${featureCount} zone polygons`;
+        }
+        
+        document.getElementById('soilStatus').textContent = statusMsg;
+        
+        if (!document.getElementById('soilToggle').checked) {
+            document.getElementById('soilToggle').checked = true;
+            soilLayer.addTo(map);
+        }
+        
+        showToast(toastMsg);
+        
+    } catch (error) {
+        document.getElementById('soilStatus').textContent = 'Error loading file';
+        console.error(error);
+        showToast('Error loading soil data');
+    }
+}
+
+async function loadShapefile(arrayBuffer, filename) {
+    try {
+        document.getElementById('soilStatus').textContent = 'Processing shapefile...';
+        
+        // Define EPSG:3857 (Web Mercator) projection
+        proj4.defs("EPSG:3857", "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs");
+        
+        // Parse the shapefile
+        const geoData = await shp(arrayBuffer);
+        
+        // Handle both single and multiple feature collections
+        let features = [];
+        if (Array.isArray(geoData)) {
+            // Multiple layers - combine them
+            geoData.forEach(layer => {
+                if (layer.features) {
+                    features = features.concat(layer.features);
+                }
+            });
+        } else if (geoData.features) {
+            features = geoData.features;
+        }
+        
+        // Check if we need to reproject from EPSG:3857 to EPSG:4326 (WGS84)
+        // Leaflet uses EPSG:4326 (lat/lng) internally
+        const needsReprojection = features.length > 0 && features[0].geometry.coordinates[0];
+        
+        if (needsReprojection) {
+            const firstCoord = features[0].geometry.type === 'Polygon' 
+                ? features[0].geometry.coordinates[0][0] 
+                : features[0].geometry.coordinates[0];
+            
+            // If coordinates are large numbers (meters), they're in EPSG:3857
+            if (Math.abs(firstCoord[0]) > 180 || Math.abs(firstCoord[1]) > 90) {
+                console.log('Reprojecting from EPSG:3857 to EPSG:4326...');
+                features.forEach(feature => {
+                    if (feature.geometry.type === 'Polygon') {
+                        feature.geometry.coordinates = feature.geometry.coordinates.map(ring =>
+                            ring.map(coord => proj4('EPSG:3857', 'EPSG:4326', coord))
+                        );
+                    } else if (feature.geometry.type === 'MultiPolygon') {
+                        feature.geometry.coordinates = feature.geometry.coordinates.map(polygon =>
+                            polygon.map(ring =>
+                                ring.map(coord => proj4('EPSG:3857', 'EPSG:4326', coord))
+                            )
+                        );
+                    }
+                });
+            }
+        }
+        
+        // Create a proper GeoJSON object
+        const convertedGeoJSON = {
+            type: "FeatureCollection",
+            features: features
+        };
+        
+        // Load it using the existing GeoJSON loader
+        const jsonString = JSON.stringify(convertedGeoJSON);
+        await loadSoilGeoJSON(jsonString, filename);
+        
+        showToast('Shapefile loaded and converted successfully!');
+        
+    } catch (error) {
+        document.getElementById('soilStatus').textContent = 'Error processing shapefile';
+        console.error('Shapefile processing error:', error);
+        showToast('Error processing shapefile: ' + error.message);
+    }
+}
+
+// ========================================
+// UI CONTROLS & LAYER TOGGLES
+// ========================================
+
+function toggleAllPanels() {
+    const mainContent = document.getElementById('mainPanelContent');
+    const layerContent = document.getElementById('layerContent');
+    
+    if (mainContent.style.display !== 'none' || layerContent.style.display !== 'none') {
+        mainContent.style.display = 'none';
+        layerContent.style.display = 'none';
+        document.getElementById('mainPanelToggleBtn').textContent = '+';
+        document.getElementById('layerToggleBtn').textContent = '+';
+        showToast('Panels hidden - Full map view');
+    } else {
+        mainContent.style.display = 'block';
+        layerContent.style.display = 'block';
+        document.getElementById('mainPanelToggleBtn').textContent = '−';
+        document.getElementById('layerToggleBtn').textContent = '−';
+        showToast('Panels visible');
+    }
+}
+
+function toggleMainPanel() {
+    const content = document.getElementById('mainPanelContent');
+    const btn = document.getElementById('mainPanelToggleBtn');
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        btn.textContent = '−';
+    } else {
+        content.style.display = 'none';
+        btn.textContent = '+';
+    }
+}
+
+function toggleLayerPanel() {
+    const content = document.getElementById('layerContent');
+    const btn = document.getElementById('layerToggleBtn');
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        btn.textContent = '−';
+    } else {
+        content.style.display = 'none';
+        btn.textContent = '+';
+    }
+}
+
+function toggleSoilLayer() {
+    if (!soilLayer) {
+        showToast('No zone/soil data loaded');
+        document.getElementById('soilToggle').checked = false;
+        return;
+    }
+    
+    if (document.getElementById('soilToggle').checked) {
+        soilLayer.addTo(map);
+        // Show zone labels if they exist
+        soilLayer.eachLayer(layer => {
+            if (layer.zoneLabel) {
+                layer.zoneLabel.addTo(map);
+            }
+        });
+    } else {
+        map.removeLayer(soilLayer);
+        // Hide zone labels
+        soilLayer.eachLayer(layer => {
+            if (layer.zoneLabel) {
+                map.removeLayer(layer.zoneLabel);
+            }
+        });
+    }
+}
+
+function toggleBoundaries() {
+    const show = document.getElementById('boundaryToggle').checked;
+    for (let id in fieldBoundaries) {
+        if (fieldBoundaries[id]) {
+            if (show && (id === currentFieldId || !currentFieldId)) {
+                fieldBoundaries[id].addTo(map);
+            } else {
+                map.removeLayer(fieldBoundaries[id]);
+            }
+        }
+    }
+}
+
+function toggleSamples() {
+    const show = document.getElementById('sampleToggle').checked;
+    sampleMarkers.forEach(item => {
+        if (show && (!currentFieldId || item.fieldId === currentFieldId)) {
+            item.marker.addTo(map);
+        } else {
+            map.removeLayer(item.marker);
+        }
+    });
+}
+
+function toggleMapType() {
+    const useSatellite = document.getElementById('satelliteToggle').checked;
+    if (useSatellite) {
+        map.removeLayer(window.mapLayers.streets);
+        map.addLayer(window.mapLayers.satellite);
+    } else {
+        map.removeLayer(window.mapLayers.satellite);
+        map.addLayer(window.mapLayers.streets);
+    }
+}
+
+// ========================================
+// EXPORT & BACKUP MODULE
+// ========================================
+
+function escapeCSV(value) {
+    if (value === null || value === undefined) return '';
+    const stringValue = String(value);
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return '"' + stringValue.replace(/"/g, '""') + '"';
+    }
+    return stringValue;
+}
+
+function exportCSV() {
+    if (!currentFarmId) {
+        alert('No farm selected');
+        return;
+    }
+    
+    const headers = [
+        'Customer', 'OrderNo', 'LayerId', 'Order Notes', 'SampleName', 'CollectDateTime',
+        'Grower', 'Farm', 'Field', 'Acres', 'Latitude', 'Longitude', 'Elevation',
+        'BagId', 'SpecialNote', 'Quarantine',
+        'Crop1', 'CropYieldGoal1', 'CropNote1',
+        'Crop2', 'CropYieldGoal2', 'CropNote2',
+        'Crop3', 'CropYieldGoal3', 'CropNote3',
+        'Crop4', 'CropYieldGoal4', 'CropNote4',
+        'Al', 'B', 'BulkDen', 'Ca', 'Cl', 'Co', 'Cu', 'Fe', 'I', 'K', 'Mg', 'Mn', 'Mo',
+        'Morgan', 'Na', 'NH3', 'NO3', 'OM', 'Olsen', 'OMP1', 'P2',
+        'PH1 (Water)', 'PH2 (Salt)', 'PH3 (Buffer)', 'PRET', 'S', 'Salts', 'Zn', 'Other',
+        'Sand Silt Clay', 'Se', 'Si', 'PLFA', 'Total P'
+    ];
+    
+    let csv = headers.join(',') + '\n';
+    
+    const farm = farms[currentFarmId];
+    let batchNumber = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    
+    for (let fieldId in farm.fields) {
+        const field = farm.fields[fieldId];
+        if (field.samplePlans && field.samplePlans.length > 0) {
+            
+            field.samplePlans.forEach((plan, planIndex) => {
+                plan.gpsPoints.forEach((point, pointIndex) => {
+                    const bagId = `${batchNumber}-${planIndex + 1}-${pointIndex + 1}`;
+                    
+                    const standardTests = {
+                        B: 'Y', Ca: 'Y', Cu: 'Y', Fe: 'Y', K: 'Y', Mg: 'Y',
+                        Mn: 'Y', Na: 'Y', OM: 'Y', P2: 'Y', PH1: 'Y', S: 'Y', Zn: 'Y'
+                    };
+                    
+                    const toggles = plan.testToggles || {};
+                    const optional = plan.testOptional || [];
+                    
+                    const row = [
+                        '', '', '', '',
+                        escapeCSV(plan.name),
+                        point.timestamp ? new Date(point.timestamp).toLocaleString() : '',
+                        escapeCSV(farm.representativeName || ''),
+                        escapeCSV(farm.name),
+                        escapeCSV(field.name),
+                        field.acres || '',
+                        point.lat ? point.lat.toFixed(6) : '',
+                        point.lng ? point.lng.toFixed(6) : '',
+                        '',
+                        bagId,
+                        '', '',
+                        '', '', '', '', '', '', '', '', '', '', '', '',
+                        '',
+                        standardTests.B,
+                        optional.includes('BulkDen') ? 'Y' : '',
+                        standardTests.Ca,
+                        toggles.Cl ? 'Y' : '',
+                        toggles.Co ? 'Y' : '',
+                        standardTests.Cu,
+                        standardTests.Fe,
+                        '',
+                        standardTests.K,
+                        standardTests.Mg,
+                        standardTests.Mn,
+                        toggles.Mo ? 'Y' : '',
+                        optional.includes('Morgan') ? 'Y' : '',
+                        standardTests.Na,
+                        optional.includes('NH3') ? 'Y' : '',
+                        optional.includes('NO3') ? 'Y' : '',
+                        standardTests.OM,
+                        optional.includes('Olsen') ? 'Y' : '',
+                        optional.includes('P1') ? 'Y' : '',
+                        standardTests.P2,
+                        standardTests.PH1,
+                        optional.includes('PH2') ? 'Y' : '',
+                        optional.includes('PH3') ? 'Y' : '',
+                        optional.includes('PRET') ? 'Y' : '',
+                        standardTests.S,
+                        toggles.Salts ? 'Y' : '',
+                        standardTests.Zn,
+                        optional.includes('Other') ? 'Y' : '',
+                        optional.includes('SSC') ? 'Y' : '',
+                        optional.includes('Se') ? 'Y' : '',
+                        optional.includes('Si') ? 'Y' : '',
+                        optional.includes('PLFA') ? 'Y' : '',
+                        optional.includes('TotalP') ? 'Y' : ''
+                    ];
+                    
+                    csv += row.join(',') + '\n';
+                });
+            });
+        }
+    }
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lab_samples_${farm.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    showToast('Lab CSV exported successfully');
+}
+
+function backupData() {
+    const backup = {
+        version: '2.0',
+        timestamp: new Date().toISOString(),
+        farms: farms,
+        currentFarmId: currentFarmId,
+        currentFieldId: currentFieldId
+    };
+    
+    const json = JSON.stringify(backup, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `field_sampler_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    showToast('Backup downloaded');
+}
+
+function restoreData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async function(event) {
+            try {
+                const backup = JSON.parse(event.target.result);
+                
+                if (!backup.farms) {
+                    alert('Invalid backup file');
+                    return;
+                }
+                
+                if (confirm('This will restore data from backup. Continue?')) {
+                    for (let id in fieldBoundaries) {
+                        if (fieldBoundaries[id]) map.removeLayer(fieldBoundaries[id]);
+                    }
+                    sampleMarkers.forEach(item => {
+                        if (item.marker) map.removeLayer(item.marker);
+                    });
+                    
+                    farms = backup.farms;
+                    currentFarmId = backup.currentFarmId;
+                    currentFieldId = backup.currentFieldId;
+                    
+                    fieldBoundaries = {};
+                    sampleMarkers = [];
+                    
+                    restoreFieldBoundariesAndSamples();
+                    updateFarmSelect();
+                    
+                    if (currentFarmId && farms[currentFarmId]) {
+                        document.getElementById('farmSelect').value = currentFarmId;
+                        selectFarm();
+                        if (currentFieldId) {
+                            selectField(currentFieldId);
+                        }
+                    }
+                    
+                    saveToLocalStorage();
+                    showToast('Data restored from backup');
+                }
+            } catch (error) {
+                alert('Error reading backup file: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+    };
+    
+    input.click();
+}
+
+// ========================================
+// UTILITY FUNCTIONS
+// ========================================
+
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+window.addEventListener('load', initMap);
