@@ -590,6 +590,16 @@
             color: #bd2130;
         }
         
+        /* Zone Label Styling */
+        .zone-label {
+            background: transparent !important;
+            border: none !important;
+        }
+        
+        .zone-label > div {
+            pointer-events: none;
+        }
+        
         /* Mobile Responsive */
         @media screen and (max-width: 768px) {
             .control-panel {
@@ -750,7 +760,7 @@
         <div id="layerContent">
             <div class="layer-toggle">
                 <input type="checkbox" id="soilToggle" onchange="toggleSoilLayer()">
-                <label for="soilToggle">SSURGO Soil Data</label>
+                <label for="soilToggle">Zone/Soil Data Overlay</label>
             </div>
             <div class="layer-toggle">
                 <input type="checkbox" id="boundaryToggle" checked onchange="toggleBoundaries()">
@@ -2312,6 +2322,19 @@ async function saveSamplePoint(fieldId, plan, gpsPoint, sampleId) {
 // SOIL DATA MODULE
 // ========================================
 
+// Helper function to determine if a color is light or dark
+function isLightColor(color) {
+    // Convert hex to RGB
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Calculate luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+}
+
 function handleSoilUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -2349,84 +2372,237 @@ async function loadSoilGeoJSON(jsonString, filename) {
             map.removeLayer(soilLayer);
         }
         
+        // Auto-detect data type by checking properties
+        let dataType = 'unknown';
+        let zoneField = null;
+        
+        if (geoData.features && geoData.features.length > 0) {
+            const props = geoData.features[0].properties;
+            
+            // Check for EC zone data
+            if (props.ec_zone || props.EC_ZONE || props.EC_Zone || props.zone || props.Zone || props.ZONE) {
+                dataType = 'ec_zone';
+                zoneField = props.ec_zone ? 'ec_zone' : 
+                           props.EC_ZONE ? 'EC_ZONE' : 
+                           props.EC_Zone ? 'EC_Zone' :
+                           props.zone ? 'zone' :
+                           props.Zone ? 'Zone' : 'ZONE';
+            }
+            // Check for SSURGO soil data
+            else if (props.MUSYM || props.musym) {
+                dataType = 'ssurgo';
+                zoneField = props.MUSYM ? 'MUSYM' : 'musym';
+            }
+            // Generic zone/management data
+            else if (props.name || props.Name || props.NAME || props.label || props.Label) {
+                dataType = 'generic';
+                zoneField = props.name ? 'name' : 
+                           props.Name ? 'Name' : 
+                           props.NAME ? 'NAME' :
+                           props.label ? 'label' : 'Label';
+            }
+        }
+        
         const colorMap = {};
-        const baseColors = ['#8B4513', '#CD853F', '#DEB887', '#F4A460', '#D2691E', '#BC8F8F', '#DAA520', '#B8860B'];
+        let baseColors;
+        
+        // Set colors based on data type
+        if (dataType === 'ec_zone') {
+            // Distinct colors for EC zones (typically A, B, C, D)
+            baseColors = {
+                'A': '#FF6B6B',  // Red - High EC
+                'B': '#FFA500',  // Orange
+                'C': '#FFD93D',  // Yellow
+                'D': '#6BCB77',  // Green - Low EC
+                'E': '#4D96FF',  // Blue (if needed)
+                'F': '#9D4EDD'   // Purple (if needed)
+            };
+        } else if (dataType === 'ssurgo') {
+            // Brown tones for soil
+            baseColors = ['#8B4513', '#CD853F', '#DEB887', '#F4A460', '#D2691E', '#BC8F8F', '#DAA520', '#B8860B'];
+        } else {
+            // Colorful palette for generic zones
+            baseColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
+        }
+        
         let colorIndex = 0;
         
+        // Build color map
         geoData.features.forEach(feature => {
-            const musym = feature.properties.MUSYM;
-            if (musym && !colorMap[musym]) {
-                colorMap[musym] = baseColors[colorIndex % baseColors.length];
-                colorIndex++;
+            const zoneValue = zoneField ? feature.properties[zoneField] : null;
+            if (zoneValue && !colorMap[zoneValue]) {
+                if (dataType === 'ec_zone' && typeof baseColors === 'object') {
+                    // Use predefined colors for specific zones
+                    colorMap[zoneValue] = baseColors[zoneValue] || baseColors[zoneValue.toUpperCase()] || '#999999';
+                } else if (Array.isArray(baseColors)) {
+                    colorMap[zoneValue] = baseColors[colorIndex % baseColors.length];
+                    colorIndex++;
+                } else {
+                    colorMap[zoneValue] = '#999999';
+                }
             }
         });
         
         soilLayer = L.geoJSON(geoData, {
             style: function(feature) {
-                const musym = feature.properties.MUSYM || '';
+                const zoneValue = zoneField ? feature.properties[zoneField] : '';
+                const fillColor = colorMap[zoneValue] || '#BC8F8F';
+                
                 return {
-                    fillColor: colorMap[musym] || '#BC8F8F',
+                    fillColor: fillColor,
                     weight: 2,
                     opacity: 1,
                     color: '#000',
-                    fillOpacity: 0.35,
+                    fillOpacity: 0.45,
                     dashArray: ''
                 };
             },
             onEachFeature: function(feature, layer) {
                 layer.soilData = feature.properties;
                 
-                const info = getSoilInfo(feature.properties.MUSYM);
-                
                 let popup = '<div style="min-width: 220px; font-size: 13px;">';
-                popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">Soil Information</h4>';
                 
-                if (feature.properties.MUSYM) {
-                    popup += `<b>Map Unit:</b> ${feature.properties.MUSYM}<br>`;
-                }
-                
-                if (info) {
-                    popup += `<hr style="margin: 8px 0;">`;
-                    popup += `<b>Soil Series:</b> ${info.series}<br>`;
-                    popup += `<b>Texture:</b> ${info.texture}<br>`;
-                    popup += `<b>Drainage:</b> ${info.drainage}<br>`;
-                    popup += `<b>Slope:</b> ${info.slope}<br>`;
-                    if (info.ph) popup += `<b>pH Range:</b> ${info.ph}<br>`;
-                    if (info.cropNotes && !info.cropNotes.includes('Web Soil Survey')) {
-                        popup += `<hr style="margin: 8px 0;">`;
-                        popup += `<i style="font-size: 11px; color: #555;">${info.cropNotes}</i>`;
+                // Build popup based on data type
+                if (dataType === 'ec_zone') {
+                    const zone = feature.properties[zoneField] || 'Unknown';
+                    popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">EC Zone Information</h4>';
+                    popup += `<div style="display: flex; align-items: center; margin-bottom: 8px;">`;
+                    popup += `<div style="width: 30px; height: 30px; background: ${colorMap[zone]}; border: 2px solid #000; border-radius: 4px; margin-right: 10px;"></div>`;
+                    popup += `<div style="font-size: 18px; font-weight: bold;">Zone ${zone}</div>`;
+                    popup += `</div>`;
+                    
+                    // Show any other available properties
+                    Object.keys(feature.properties).forEach(key => {
+                        if (key !== zoneField && feature.properties[key] !== null && feature.properties[key] !== '') {
+                            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            popup += `<b>${displayKey}:</b> ${feature.properties[key]}<br>`;
+                        }
+                    });
+                    
+                } else if (dataType === 'ssurgo') {
+                    popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">Soil Information</h4>';
+                    
+                    if (feature.properties[zoneField]) {
+                        popup += `<b>Map Unit:</b> ${feature.properties[zoneField]}<br>`;
                     }
+                    
+                    const info = getSoilInfo(feature.properties[zoneField]);
+                    if (info) {
+                        popup += `<hr style="margin: 8px 0;">`;
+                        popup += `<b>Soil Series:</b> ${info.series}<br>`;
+                        popup += `<b>Texture:</b> ${info.texture}<br>`;
+                        popup += `<b>Drainage:</b> ${info.drainage}<br>`;
+                        popup += `<b>Slope:</b> ${info.slope}<br>`;
+                        if (info.ph) popup += `<b>pH Range:</b> ${info.ph}<br>`;
+                        if (info.cropNotes && !info.cropNotes.includes('Web Soil Survey')) {
+                            popup += `<hr style="margin: 8px 0;">`;
+                            popup += `<i style="font-size: 11px; color: #555;">${info.cropNotes}</i>`;
+                        }
+                    }
+                    
+                } else {
+                    // Generic data
+                    popup += '<h4 style="margin: 0 0 8px 0; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 4px;">Zone Information</h4>';
+                    
+                    Object.keys(feature.properties).forEach(key => {
+                        if (feature.properties[key] !== null && feature.properties[key] !== '') {
+                            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            popup += `<b>${displayKey}:</b> ${feature.properties[key]}<br>`;
+                        }
+                    });
                 }
                 
                 popup += '</div>';
                 layer.bindPopup(popup);
+                
+                // Add labels for EC zones
+                if (dataType === 'ec_zone' && zoneField) {
+                    const zoneValue = feature.properties[zoneField];
+                    if (zoneValue) {
+                        const center = layer.getBounds().getCenter();
+                        const zoneColor = colorMap[zoneValue] || '#000';
+                        
+                        // Create a contrasting text color
+                        const textColor = isLightColor(zoneColor) ? '#000' : '#fff';
+                        
+                        const labelIcon = L.divIcon({
+                            className: 'zone-label',
+                            html: `<div style="
+                                background: ${zoneColor};
+                                color: ${textColor};
+                                padding: 4px 8px;
+                                border-radius: 4px;
+                                border: 2px solid #000;
+                                font-weight: bold;
+                                font-size: 14px;
+                                text-align: center;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                                white-space: nowrap;
+                            ">Zone ${zoneValue}</div>`,
+                            iconSize: [60, 24],
+                            iconAnchor: [30, 12]
+                        });
+                        
+                        const labelMarker = L.marker(center, {
+                            icon: labelIcon,
+                            interactive: false,
+                            zIndexOffset: 1000
+                        });
+                        
+                        // Store label with the layer for toggling
+                        layer.zoneLabel = labelMarker;
+                    }
+                }
             }
         });
         
         if (document.getElementById('soilToggle').checked) {
             soilLayer.addTo(map);
+            // Add zone labels if it's EC data
+            if (dataType === 'ec_zone') {
+                soilLayer.eachLayer(layer => {
+                    if (layer.zoneLabel) {
+                        layer.zoneLabel.addTo(map);
+                    }
+                });
+            }
         }
         
         const bounds = soilLayer.getBounds();
         map.fitBounds(bounds, { padding: [50, 50] });
         
         let featureCount = 0;
-        const uniqueSoilTypes = new Set();
+        const uniqueZones = new Set();
         geoData.features.forEach(f => {
             featureCount++;
-            if (f.properties.MUSYM) {
-                uniqueSoilTypes.add(f.properties.MUSYM);
+            if (zoneField && f.properties[zoneField]) {
+                uniqueZones.add(f.properties[zoneField]);
             }
         });
         
-        document.getElementById('soilStatus').textContent = `✓ ${featureCount} polygons, ${uniqueSoilTypes.size} soil types`;
+        // Create status message based on data type
+        let statusMsg = `✓ ${featureCount} polygons`;
+        let toastMsg = `Loaded ${featureCount} polygons`;
+        
+        if (dataType === 'ec_zone') {
+            statusMsg += `, ${uniqueZones.size} EC zones: ${Array.from(uniqueZones).sort().join(', ')}`;
+            toastMsg = `Loaded ${uniqueZones.size} EC zones (${Array.from(uniqueZones).sort().join(', ')})`;
+        } else if (dataType === 'ssurgo') {
+            statusMsg += `, ${uniqueZones.size} soil types`;
+            toastMsg = `Loaded ${featureCount} soil polygons`;
+        } else {
+            statusMsg += `, ${uniqueZones.size} zones`;
+            toastMsg = `Loaded ${featureCount} zone polygons`;
+        }
+        
+        document.getElementById('soilStatus').textContent = statusMsg;
         
         if (!document.getElementById('soilToggle').checked) {
             document.getElementById('soilToggle').checked = true;
             soilLayer.addTo(map);
         }
         
-        showToast(`Loaded ${featureCount} soil polygons`);
+        showToast(toastMsg);
         
     } catch (error) {
         document.getElementById('soilStatus').textContent = 'Error loading file';
@@ -2556,15 +2732,27 @@ function toggleLayerPanel() {
 
 function toggleSoilLayer() {
     if (!soilLayer) {
-        showToast('No soil data loaded');
+        showToast('No zone/soil data loaded');
         document.getElementById('soilToggle').checked = false;
         return;
     }
     
     if (document.getElementById('soilToggle').checked) {
         soilLayer.addTo(map);
+        // Show zone labels if they exist
+        soilLayer.eachLayer(layer => {
+            if (layer.zoneLabel) {
+                layer.zoneLabel.addTo(map);
+            }
+        });
     } else {
         map.removeLayer(soilLayer);
+        // Hide zone labels
+        soilLayer.eachLayer(layer => {
+            if (layer.zoneLabel) {
+                map.removeLayer(layer.zoneLabel);
+            }
+        });
     }
 }
 
