@@ -10,6 +10,11 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     
+    <!-- Shapefile processing libraries -->
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.min.js"></script>
+    <script src="https://unpkg.com/proj4@2.9.0/dist/proj4.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -761,12 +766,13 @@
             </div>
             <hr style="margin: 10px 0;">
             <div class="file-upload">
-                <input type="file" id="soilUpload" accept=".json,.geojson,.kml">
+                <input type="file" id="soilUpload" accept=".json,.geojson,.kml,.zip">
                 <label for="soilUpload" class="file-upload-label">
-                    📁 Load Soil Data
+                    📁 Load Zone/Soil Data
                 </label>
             </div>
-            <div style="margin-top: 5px; font-size: 11px; color: #666;" id="soilStatus">No soil data loaded</div>
+            <div style="margin-top: 5px; font-size: 11px; color: #666;" id="soilStatus">No zone/soil data loaded</div>
+            <div style="margin-top: 3px; font-size: 10px; color: #999; font-style: italic;">Supports: GeoJSON, KML, or Zipped Shapefiles</div>
         </div>
     </div>
     
@@ -2312,16 +2318,26 @@ function handleSoilUpload(e) {
     
     document.getElementById('soilStatus').textContent = 'Loading...';
     
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        const content = event.target.result;
-        const fileName = file.name.toLowerCase();
-        
-        if (fileName.endsWith('.json') || fileName.endsWith('.geojson')) {
-            loadSoilGeoJSON(content, file.name);
-        }
-    };
-    reader.readAsText(file);
+    const fileName = file.name.toLowerCase();
+    
+    if (fileName.endsWith('.zip')) {
+        // Handle zipped shapefile
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            loadShapefile(event.target.result, file.name);
+        };
+        reader.readAsArrayBuffer(file);
+    } else if (fileName.endsWith('.json') || fileName.endsWith('.geojson')) {
+        // Handle GeoJSON files
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            loadSoilGeoJSON(event.target.result, file.name);
+        };
+        reader.readAsText(file);
+    } else {
+        document.getElementById('soilStatus').textContent = 'Unsupported file type';
+        showToast('Please upload a .zip shapefile, .json, or .geojson file');
+    }
 }
 
 async function loadSoilGeoJSON(jsonString, filename) {
@@ -2416,6 +2432,76 @@ async function loadSoilGeoJSON(jsonString, filename) {
         document.getElementById('soilStatus').textContent = 'Error loading file';
         console.error(error);
         showToast('Error loading soil data');
+    }
+}
+
+async function loadShapefile(arrayBuffer, filename) {
+    try {
+        document.getElementById('soilStatus').textContent = 'Processing shapefile...';
+        
+        // Define EPSG:3857 (Web Mercator) projection
+        proj4.defs("EPSG:3857", "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs");
+        
+        // Parse the shapefile
+        const geoData = await shp(arrayBuffer);
+        
+        // Handle both single and multiple feature collections
+        let features = [];
+        if (Array.isArray(geoData)) {
+            // Multiple layers - combine them
+            geoData.forEach(layer => {
+                if (layer.features) {
+                    features = features.concat(layer.features);
+                }
+            });
+        } else if (geoData.features) {
+            features = geoData.features;
+        }
+        
+        // Check if we need to reproject from EPSG:3857 to EPSG:4326 (WGS84)
+        // Leaflet uses EPSG:4326 (lat/lng) internally
+        const needsReprojection = features.length > 0 && features[0].geometry.coordinates[0];
+        
+        if (needsReprojection) {
+            const firstCoord = features[0].geometry.type === 'Polygon' 
+                ? features[0].geometry.coordinates[0][0] 
+                : features[0].geometry.coordinates[0];
+            
+            // If coordinates are large numbers (meters), they're in EPSG:3857
+            if (Math.abs(firstCoord[0]) > 180 || Math.abs(firstCoord[1]) > 90) {
+                console.log('Reprojecting from EPSG:3857 to EPSG:4326...');
+                features.forEach(feature => {
+                    if (feature.geometry.type === 'Polygon') {
+                        feature.geometry.coordinates = feature.geometry.coordinates.map(ring =>
+                            ring.map(coord => proj4('EPSG:3857', 'EPSG:4326', coord))
+                        );
+                    } else if (feature.geometry.type === 'MultiPolygon') {
+                        feature.geometry.coordinates = feature.geometry.coordinates.map(polygon =>
+                            polygon.map(ring =>
+                                ring.map(coord => proj4('EPSG:3857', 'EPSG:4326', coord))
+                            )
+                        );
+                    }
+                });
+            }
+        }
+        
+        // Create a proper GeoJSON object
+        const convertedGeoJSON = {
+            type: "FeatureCollection",
+            features: features
+        };
+        
+        // Load it using the existing GeoJSON loader
+        const jsonString = JSON.stringify(convertedGeoJSON);
+        await loadSoilGeoJSON(jsonString, filename);
+        
+        showToast('Shapefile loaded and converted successfully!');
+        
+    } catch (error) {
+        document.getElementById('soilStatus').textContent = 'Error processing shapefile';
+        console.error('Shapefile processing error:', error);
+        showToast('Error processing shapefile: ' + error.message);
     }
 }
 
