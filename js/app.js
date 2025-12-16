@@ -1692,6 +1692,9 @@ async function loadSoilGeoJSON(jsonString, filename) {
                 popup += '</div>';
                 layer.bindPopup(popup);
                 
+                // NOTE: Zone labels disabled per user request to better see zone colors
+                // Uncomment this section if you want to show "Zone A", "Zone B" labels on the map
+                /*
                 // Add labels for EC zones
                 if (dataType === 'ec_zone' && zoneField) {
                     const zoneValue = feature.properties[zoneField];
@@ -1730,11 +1733,14 @@ async function loadSoilGeoJSON(jsonString, filename) {
                         layer.zoneLabel = labelMarker;
                     }
                 }
+                */
             }
         });
         
         if (document.getElementById('soilToggle').checked) {
             soilLayer.addTo(map);
+            // Labels disabled - see comment above
+            /*
             // Add zone labels if it's EC data
             if (dataType === 'ec_zone') {
                 soilLayer.eachLayer(layer => {
@@ -1743,6 +1749,7 @@ async function loadSoilGeoJSON(jsonString, filename) {
                     }
                 });
             }
+            */
         }
         
         const bounds = soilLayer.getBounds();
