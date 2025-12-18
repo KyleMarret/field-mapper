@@ -4,205 +4,335 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>KAS Field Sampler v2.0</title>
+    <title>KAS Field Sampler - Clean Build</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <!-- Application Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <style>
+        /* Additional clean UI styles */
+        .map-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 20px;
+            max-width: 350px;
+            z-index: 1000;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+        
+        .panel-collapsed {
+            width: auto;
+            padding: 12px 16px;
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .toggle-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #667eea;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #667eea;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .file-input-label:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .file-status {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #64748b;
+            font-style: italic;
+        }
+        
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .toggle-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .toggle-item label {
+            font-size: 14px;
+            color: #334155;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .gps-status {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 13px;
+        }
+        
+        .gps-label {
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        
+        .gps-value {
+            color: #1e293b;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+        
+        .map-btn {
+            width: 44px;
+            height: 44px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .map-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .map-btn:active {
+            transform: translateY(0);
+        }
+        
+        .map-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            font-size: 14px;
+        }
+        
+        .toast.show {
+            opacity: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .map-panel {
+                left: 10px;
+                top: 10px;
+                max-width: calc(100% - 80px);
+                max-height: calc(100vh - 100px);
+            }
+            
+            .map-controls {
+                top: 10px;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Map Container -->
+    <div id="map"></div>
+    
+    <!-- Control Panel -->
+    <div class="map-panel" id="controlPanel">
+        <div class="panel-title">
+            <span id="panelTitleText">Field Sampler</span>
+            <button class="toggle-btn" onclick="togglePanel()" id="toggleBtn">−</button>
+        </div>
+        
+        <div id="panelContent">
+            <!-- GPS Status Section -->
+            <div class="section">
+                <div class="section-label">GPS Location</div>
+                <div class="gps-status">
+                    <div class="gps-label">Status:</div>
+                    <div class="gps-value" id="gpsStatus">Waiting for GPS...</div>
+                    <div class="gps-label" style="margin-top: 8px;">Coordinates:</div>
+                    <div class="gps-value" id="gpsCoords">--</div>
+                    <div class="gps-label" style="margin-top: 8px;">Accuracy:</div>
+                    <div class="gps-value" id="gpsAccuracy">--</div>
+                </div>
+            </div>
+            
+            <!-- File Upload Section -->
+            <div class="section">
+                <div class="section-label">Load Map Data</div>
+                <div class="file-input-wrapper">
+                    <input type="file" id="mapUpload" accept=".json,.geojson,.kml,.zip">
+                    <label for="mapUpload" class="file-input-label">
+                        <span>📁</span>
+                        <span>Load Zone/Soil Data</span>
+                    </label>
+                </div>
+                <div class="file-status" id="fileStatus">
+                    Supports: GeoJSON, KML, Zipped Shapefiles
+                </div>
+            </div>
+            
+            <!-- Layer Toggles Section -->
+            <div class="section">
+                <div class="section-label">Map Layers</div>
+                <div class="toggle-group">
+                    <div class="toggle-item">
+                        <input type="checkbox" id="satelliteToggle" checked onchange="toggleSatellite()">
+                        <label for="satelliteToggle">Satellite View</label>
+                    </div>
+                    <div class="toggle-item">
+                        <input type="checkbox" id="zonesToggle" checked onchange="toggleZones()">
+                        <label for="zonesToggle">Zone/Soil Data</label>
+                    </div>
+                    <div class="toggle-item">
+                        <input type="checkbox" id="gpsToggle" checked onchange="toggleGPSMarker()">
+                        <label for="gpsToggle">GPS Marker</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Info Display -->
+            <div class="section">
+                <div class="section-label">Map Info</div>
+                <div class="gps-status">
+                    <div class="gps-value" id="mapInfo">No data loaded</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Map Controls -->
+    <div class="map-controls">
+        <button class="map-btn" onclick="centerOnGPS()" title="Center on GPS">
+            📍
+        </button>
+        <button class="map-btn" onclick="zoomIn()" title="Zoom In">
+            ➕
+        </button>
+        <button class="map-btn" onclick="zoomOut()" title="Zoom Out">
+            ➖
+        </button>
+        <button class="map-btn" onclick="clearMap()" title="Clear Data">
+            🗑️
+        </button>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <!-- Shapefile processing libraries -->
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.min.js"></script>
     <script src="https://unpkg.com/proj4@2.9.0/dist/proj4.js"></script>
     
-    <!-- Application Styles -->
-    <link rel="stylesheet" href="css/styles.css">
-</head>
-<body>
-    <div id="map"></div>
-    
-    <!-- Sync Status -->
-    <div class="sync-status" id="syncStatus">
-        <div class="sync-dot"></div>
-        <span id="syncStatusText">Connecting...</span>
-    </div>
-    
-    <!-- Toast Notification -->
-    <div class="toast" id="toast"></div>
-    
-    <!-- Modal for Editing -->
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal-content">
-            <div class="modal-header" id="modalHeader">Edit</div>
-            <div class="modal-body" id="modalBody"></div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                <button class="btn btn-primary" id="modalSaveBtn">Save</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Main Control Panel -->
-    <div class="control-panel" id="mainPanel">
-        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <span>KAS Field Sampler v2.0</span>
-            <button onclick="toggleMainPanel()" style="background: none; border: none; cursor: pointer; font-size: 20px; color: white; padding: 0; width: 24px; height: 24px;" id="mainPanelToggleBtn">
-                −
-            </button>
-        </div>
-        <div id="mainPanelContent">
-            <!-- Farm Section -->
-            <div class="panel-section">
-                <div class="section-title">Farm Management</div>
-                <div class="form-group">
-                    <label class="form-label">Select Farm</label>
-                    <select class="form-select" id="farmSelect" onchange="selectFarm()">
-                        <option value="">-- Select or Add New --</option>
-                    </select>
-                </div>
-                <div class="btn-group">
-                    <button class="btn btn-outline" onclick="showAddFarm()">+ Add</button>
-                    <button class="btn btn-outline" onclick="editFarm()">✏️ Edit</button>
-                    <button class="btn btn-outline" onclick="deleteFarm()">🗑️ Delete</button>
-                </div>
-            </div>
-            
-            <!-- Field Section -->
-            <div class="panel-section" id="fieldSection" style="display: none;">
-                <div class="section-title">Field Management</div>
-                <div class="field-list" id="fieldList">
-                    <div class="no-data">No fields added yet</div>
-                </div>
-                <button class="btn btn-primary" onclick="showAddField()">+ Add New Field</button>
-                <div class="btn-group">
-                    <button class="btn btn-outline" onclick="editField()">✏️ Edit Field</button>
-                    <button class="btn btn-outline" onclick="deleteField()">🗑️ Delete Field</button>
-                </div>
-                <button class="btn btn-success" id="drawFieldBtn" onclick="drawFieldBoundary()">📐 Draw Field Boundary</button>
-            </div>
-            
-            <!-- Sampling Section -->
-            <div class="panel-section" id="samplingSection" style="display: none;">
-                <div class="section-title">Sampling</div>
-                <div class="form-group">
-                    <label class="form-label">Active Field: <span id="activeFieldName" style="color: #667eea; font-weight: 600;">None</span></label>
-                </div>
-                
-                <!-- Add Sample Input -->
-                <div class="form-group">
-                    <label class="form-label">Add Sample</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" class="form-input" id="newSampleName" placeholder="e.g., North Section, Area A" style="flex: 1;">
-                        <button class="btn btn-primary" onclick="addSamplePlan()" style="width: auto; padding: 10px 20px;">+ Add</button>
-                    </div>
-                </div>
-                
-                <!-- Sample List -->
-                <div class="form-group">
-                    <label class="form-label">Sample Plans</label>
-                    <div id="samplePlanList" style="max-height: 200px; overflow-y: auto;">
-                        <div class="no-data" style="padding: 15px;">No samples added yet. Click + Add to create samples.</div>
-                    </div>
-                </div>
-                
-                <button class="btn btn-warning" onclick="startSampling()">Start Sampling</button>
-                <div class="form-group" style="margin-top: 10px;">
-                    <label class="form-label">GPS Points Collected: <span id="sampleCount" style="font-weight: 600;">0</span></label>
-                </div>
-                <div class="info-box warning">
-                    <b>📱 GPS Tip:</b> Phone (cellular) GPS is more accurate than WiFi-only iPad. Use phone for field sampling, iPad for data review.
-                </div>
-            </div>
-            
-            <!-- Export Section -->
-            <div class="panel-section" id="exportSection" style="display: none;">
-                <div class="section-title">Data Export & Backup</div>
-                <button class="btn btn-success" onclick="exportCSV()">📊 Export Lab CSV</button>
-                <div class="btn-group" style="margin-top: 8px;">
-                    <button class="btn btn-outline" onclick="backupData()">💾 Backup All</button>
-                    <button class="btn btn-outline" onclick="restoreData()">📥 Restore</button>
-                </div>
-                <button class="btn btn-outline" onclick="forceSync()" style="margin-top: 8px;">🔄 Force Sync</button>
-                <div class="info-box info">
-                    <b>☁️ Cloud Sync:</b> Your data syncs automatically across all devices. Works offline - syncs when reconnected.
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Layer Controls -->
-    <div class="layer-controls" id="layerControls">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h4 style="margin: 0;">Map Layers</h4>
-            <button onclick="toggleLayerPanel()" style="background: none; border: none; cursor: pointer; font-size: 18px; color: #667eea; padding: 0;" id="layerToggleBtn">
-                −
-            </button>
-        </div>
-        <div id="layerContent">
-            <div class="layer-toggle">
-                <input type="checkbox" id="soilToggle" onchange="toggleSoilLayer()">
-                <label for="soilToggle">Zone/Soil Data Overlay</label>
-            </div>
-            <div class="layer-toggle">
-                <input type="checkbox" id="boundaryToggle" checked onchange="toggleBoundaries()">
-                <label for="boundaryToggle">Field Boundaries</label>
-            </div>
-            <div class="layer-toggle">
-                <input type="checkbox" id="sampleToggle" checked onchange="toggleSamples()">
-                <label for="sampleToggle">Sample Points</label>
-            </div>
-            <div class="layer-toggle">
-                <input type="checkbox" id="satelliteToggle" checked onchange="toggleMapType()">
-                <label for="satelliteToggle">Satellite View</label>
-            </div>
-            <hr style="margin: 10px 0;">
-            <div class="file-upload">
-                <input type="file" id="soilUpload" accept=".json,.geojson,.kml,.zip">
-                <label for="soilUpload" class="file-upload-label">
-                    📁 Load Zone/Soil Data
-                </label>
-            </div>
-            <div style="margin-top: 5px; font-size: 11px; color: #666;" id="soilStatus">No zone/soil data loaded</div>
-            <div style="margin-top: 3px; font-size: 10px; color: #999; font-style: italic;">Supports: GeoJSON, KML, or Zipped Shapefiles</div>
-        </div>
-    </div>
-    
-    <!-- Status Bar -->
-    <div class="status-bar">
-        <span class="status-item">
-            <span class="status-label">GPS:</span>
-            <span class="status-value" id="gpsStatus">Waiting...</span>
-        </span>
-        <span class="status-item">
-            <span class="status-label">Farm:</span>
-            <span class="status-value" id="currentFarm">None</span>
-        </span>
-        <span class="status-item">
-            <span class="status-label">Field:</span>
-            <span class="status-value" id="currentField">None</span>
-        </span>
-    </div>
-    
-    <!-- Toolbar -->
-    <div class="toolbar">
-        <button class="tool-btn" onclick="toggleAllPanels()" title="Toggle Panels" style="background: #667eea; color: white;">☰</button>
-        <button class="tool-btn" onclick="centerOnGPS()" title="Center on GPS">📍</button>
-        <button class="tool-btn" id="dropPinBtn" onclick="dropPin()" title="Drop Sample Pin">🎯</button>
-        <button class="tool-btn" onclick="zoomIn()" title="Zoom In">➕</button>
-        <button class="tool-btn" onclick="zoomOut()" title="Zoom Out">➖</button>
-        <button class="tool-btn" onclick="zoomToField()" title="Zoom to Field">🔍</button>
-    </div>
-    
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <!-- KML Support -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
-    
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <!-- Application JavaScript -->
     <script src="js/app.js"></script>
-
 </body>
 </html>
