@@ -113,6 +113,12 @@
             font-size: 11px;
             color: #64748b;
             font-style: italic;
+            min-height: 16px;
+            line-height: 14px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            max-width: 100%;
         }
         
         .toggle-group {
@@ -262,14 +268,14 @@
             <div class="section">
                 <div class="section-label">Load Map Data</div>
                 <div class="file-input-wrapper">
-                    <input type="file" id="mapUpload" accept=".json,.geojson,.kml,.zip">
+                    <input type="file" id="mapUpload" accept=".json,.geojson,.kml,.zip,.gpkg">
                     <label for="mapUpload" class="file-input-label">
                         <span>📁</span>
                         <span>Load Zone/Soil Data</span>
                     </label>
                 </div>
                 <div class="file-status" id="fileStatus">
-                    Supports: GeoJSON, KML, Zipped Shapefiles
+                    Supports: GeoJSON, KML, Shapefiles (ZIP), GeoPackage
                 </div>
             </div>
             
@@ -282,8 +288,12 @@
                         <label for="satelliteToggle">Satellite View</label>
                     </div>
                     <div class="toggle-item">
+                        <input type="checkbox" id="ssurgoToggle" onchange="toggleSSURGO()">
+                        <label for="ssurgoToggle">SSURGO Soil Layer</label>
+                    </div>
+                    <div class="toggle-item">
                         <input type="checkbox" id="zonesToggle" checked onchange="toggleZones()">
-                        <label for="zonesToggle">Zone/Soil Data</label>
+                        <label for="zonesToggle">Uploaded Data</label>
                     </div>
                     <div class="toggle-item">
                         <input type="checkbox" id="gpsToggle" checked onchange="toggleGPSMarker()">
@@ -331,6 +341,9 @@
     
     <!-- KML Support -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
+    
+    <!-- SQL.js for GeoPackage support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
     
     <!-- Application JavaScript -->
     <script src="js/app.js"></script>
