@@ -20,43 +20,90 @@ if (window.soilDataCache) {
 }
 
 // Fetch soil data from USDA Soil Data Access API
-async function fetchSoilDataFromUSDA(musym) {
+async function fetchSoilDataFromUSDA(musym, lat = null, lon = null) {
+    // Create cache key including location if provided
+    const cacheKey = (lat && lon) ? `${musym}_${lat.toFixed(4)}_${lon.toFixed(4)}` : musym;
+    
     // Check cache first
-    if (soilDataCache[musym]) {
-        console.log(`Using cached data for ${musym}`);
-        return soilDataCache[musym];
+    if (soilDataCache[cacheKey]) {
+        console.log(`Using cached data for ${cacheKey}`);
+        return soilDataCache[cacheKey];
     }
     
-    console.log(`Fetching soil data for MUSYM: ${musym}`);
+    console.log(`Fetching soil data for MUSYM: ${musym}${lat && lon ? ` at location (${lat}, ${lon})` : ''}`);
     
     try {
         // USDA Soil Data Access API endpoint
-        // Query to get ALL distinct soil components in a map unit
-        // Use TOP 1 per component with GROUP BY on component name to avoid duplicates across multiple survey areas
-        const query = `SELECT 
+        // Query to get the map unit - use geographic location if available to get the correct survey area
+        let query;
+        if (lat && lon) {
+            // Use SDA_Get_Mukey_from_intersection_with_WktWgs84 to get mukey at specific location
+            // When we have location, trust the location over the musym (shapefile may have variant codes)
+            query = `SELECT TOP 1 mu.musym, mu.muname, mu.mukey
+                FROM mapunit mu
+                WHERE mu.mukey IN (
+                    SELECT * FROM SDA_Get_Mukey_from_intersection_with_WktWgs84('point(${lon} ${lat})')
+                )`;
+            console.log(`Using geographic location (${lat}, ${lon}) to find soil data (shapefile says: ${musym})`);
+        } else {
+            // Fallback: get any map unit with this musym (may be wrong survey area)
+            query = `SELECT TOP 1
+                mu.musym, mu.muname, mu.mukey
+            FROM mapunit mu
+            WHERE mu.musym = '${musym}'
+            ORDER BY mu.mukey DESC`;
+        }
+        
+        // First get the mukey for this musym
+        const params1 = new URLSearchParams();
+        params1.append('query', query);
+        params1.append('format', 'JSON+COLUMNNAME');
+        
+        const response1 = await fetch('https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params1.toString()
+        });
+        
+        if (!response1.ok) {
+            throw new Error(`API request failed: ${response1.status}`);
+        }
+        
+        const mukeyData = await response1.json();
+        
+        if (!mukeyData.Table || mukeyData.Table.length < 2) {
+            throw new Error('Map unit not found');
+        }
+        
+        const mukey = mukeyData.Table[1][2]; // mukey is 3rd column
+        console.log(`Found mukey ${mukey} for musym ${musym}`);
+        
+        // Now get components for this specific mukey
+        const componentQuery = `SELECT 
             mu.musym, mu.muname, 
             c.compname, 
-            MAX(c.comppct_r) as comppct_r,
-            MAX(c.taxclname) as taxclname,
-            MAX(c.drainagecl) as drainagecl,
-            MAX(c.slope_l) as slope_l, 
-            MAX(c.slope_h) as slope_h,
-            MAX(c.taxorder) as taxorder, 
-            MAX(c.taxsuborder) as taxsuborder, 
-            MAX(c.taxgrtgroup) as taxgrtgroup, 
-            MAX(c.taxsubgrp) as taxsubgrp,
-            MAX(c.cokey) as cokey
+            c.comppct_r,
+            c.taxclname,
+            c.drainagecl,
+            c.slope_l, 
+            c.slope_h,
+            c.taxorder, 
+            c.taxsuborder, 
+            c.taxgrtgroup, 
+            c.taxsubgrp,
+            c.cokey
         FROM mapunit mu
         INNER JOIN component c ON c.mukey = mu.mukey
-        WHERE mu.musym = '${musym}' AND c.comppct_r >= 3
-        GROUP BY mu.musym, mu.muname, c.compname
-        ORDER BY MAX(c.comppct_r) DESC`;
+        WHERE mu.mukey = ${mukey} AND c.comppct_r >= 3
+        ORDER BY c.comppct_r DESC`;
         
-        console.log('SQL Query:', query);
+        console.log('SQL Query for components:', componentQuery);
         
         // Use URLSearchParams instead of FormData for proper form encoding
         const params = new URLSearchParams();
-        params.append('query', query);
+        params.append('query', componentQuery);
         params.append('format', 'JSON+COLUMNNAME');
         
         console.log('Sending request to USDA API...');
@@ -179,7 +226,7 @@ async function fetchSoilDataFromUSDA(musym) {
             console.log('Parsed soil info with multiple components:', soilInfo);
             
             // Cache the result
-            soilDataCache[musym] = soilInfo;
+            soilDataCache[cacheKey] = soilInfo;
             return soilInfo;
         } else {
             console.warn('No data found in API response for', musym);
@@ -199,7 +246,7 @@ async function fetchSoilDataFromUSDA(musym) {
                 }],
                 fetched: false
             };
-            soilDataCache[musym] = fallback;
+            soilDataCache[cacheKey] = fallback;
             return fallback;
         }
         
@@ -223,14 +270,14 @@ async function fetchSoilDataFromUSDA(musym) {
             fetched: false,
             error: true
         };
-        soilDataCache[musym] = fallback;
+        soilDataCache[cacheKey] = fallback;
         return fallback;
     }
 }
 
 // Main function to get soil info (now async)
-async function getSoilInfo(musym) {
-    return await fetchSoilDataFromUSDA(musym);
+async function getSoilInfo(musym, lat = null, lon = null) {
+    return await fetchSoilDataFromUSDA(musym, lat, lon);
 }
 
 // ========================================
@@ -784,7 +831,10 @@ function displayDataLayer(geojson, filename) {
                 
                 // Fetch soil data asynchronously when popup opens
                 layer.on('popupopen', async () => {
-                    const soilInfo = await getSoilInfo(zoneId);
+                    // Get the center of the polygon to pass to the API for location-specific query
+                    const bounds = layer.getBounds();
+                    const center = bounds.getCenter();
+                    const soilInfo = await getSoilInfo(zoneId, center.lat, center.lng);
                     
                     // Build popup with component navigation if multiple components exist
                     const components = soilInfo.components || [];
@@ -1113,8 +1163,8 @@ async function handleSSURGOClick_DISABLED(e) {
                 .setContent('<div style="padding: 10px; text-align: center;">Loading soil data...</div>')
                 .openOn(map);
             
-            // Fetch soil info and show detailed popup
-            const soilInfo = await getSoilInfo(musym);
+            // Fetch soil info with location to get correct survey area
+            const soilInfo = await getSoilInfo(musym, latlng.lat, latlng.lng);
             
             // Build popup similar to uploaded data
             const components = soilInfo.components || [];
