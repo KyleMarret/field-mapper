@@ -218,6 +218,9 @@
             transition: opacity 0.3s;
             pointer-events: none;
             font-size: 14px;
+            white-space: nowrap;
+            max-width: 90vw;
+            text-align: center;
         }
         
         .toast.show {
@@ -261,6 +264,52 @@
                     <div class="gps-value" id="gpsCoords">--</div>
                     <div class="gps-label" style="margin-top: 8px;">Accuracy:</div>
                     <div class="gps-value" id="gpsAccuracy">--</div>
+                    <div id="gpsAccuracyWarning" style="display: none; margin-top: 8px; padding: 8px; background: #fed7d7; color: #c53030; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                        ⚠ Poor GPS signal
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Project Info Section -->
+            <div class="section">
+                <div class="section-label" style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;" onclick="toggleProjectInfo()">
+                    <span>Project Info</span>
+                    <span id="projectInfoToggle">▼</span>
+                </div>
+                <div id="projectInfoContent" style="margin-top: 10px;">
+                    <input type="text" id="growerName" placeholder="Grower Name" 
+                           style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; margin-bottom: 6px;">
+                    <input type="text" id="farmName" placeholder="Farm Name (optional)" 
+                           style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; margin-bottom: 6px;">
+                    <input type="text" id="fieldName" placeholder="Field Name" 
+                           style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; margin-bottom: 6px;">
+                    <input type="text" id="sampleType" placeholder="Sample Name/Zone" 
+                           style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px;">
+                    <input type="text" id="zoneInfo" placeholder="Additional Notes (optional)" 
+                           style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; margin-top: 6px;">
+                </div>
+                <div class="gps-status" style="margin-top: 10px;">
+                    <div class="gps-label">Sampling Points:</div>
+                    <div class="gps-value" id="samplingPointCount">0 points</div>
+                </div>
+            </div>
+            
+            <!-- Sampling Actions Section -->
+            <div class="section">
+                <div class="section-label">Sampling Actions</div>
+                <button onclick="addSamplingPoint()" 
+                        style="width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 8px;">
+                    + Add Sample Point
+                </button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button onclick="exportToCSV()" 
+                            style="padding: 12px; background: #48bb78; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                        ↓ Export
+                    </button>
+                    <button onclick="clearProject()" 
+                            style="padding: 12px; background: #f56565; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                        ✕ Clear
+                    </button>
                 </div>
             </div>
             
@@ -270,7 +319,7 @@
                 <div class="file-input-wrapper">
                     <input type="file" id="mapUpload" accept=".json,.geojson,.kml,.zip,.gpkg">
                     <label for="mapUpload" class="file-input-label">
-                        <span>📁</span>
+                        <span style="font-size: 16px; font-weight: 600;">↑</span>
                         <span>Load Zone/Soil Data</span>
                     </label>
                 </div>
@@ -314,17 +363,17 @@
     
     <!-- Map Controls -->
     <div class="map-controls">
-        <button class="map-btn" onclick="centerOnGPS()" title="Center on GPS">
-            📍
+        <button class="map-btn" onclick="centerOnGPS()" title="Center on GPS" style="font-size: 16px; font-weight: 600;">
+            ⊙
         </button>
-        <button class="map-btn" onclick="zoomIn()" title="Zoom In">
-            ➕
+        <button class="map-btn" onclick="zoomIn()" title="Zoom In" style="font-size: 18px; font-weight: 600;">
+            +
         </button>
-        <button class="map-btn" onclick="zoomOut()" title="Zoom Out">
-            ➖
+        <button class="map-btn" onclick="zoomOut()" title="Zoom Out" style="font-size: 18px; font-weight: 600;">
+            −
         </button>
-        <button class="map-btn" onclick="clearMap()" title="Clear Data">
-            🗑️
+        <button class="map-btn" onclick="clearMap()" title="Clear Data" style="font-size: 16px; font-weight: 600;">
+            ✕
         </button>
     </div>
     

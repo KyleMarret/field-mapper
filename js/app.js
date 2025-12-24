@@ -287,6 +287,7 @@ async function getSoilInfo(musym, lat = null, lon = null) {
 let map;
 let currentLocation = null;
 let locationMarker = null;
+let accuracyCircle = null;
 let dataLayer = null;
 let loadedData = null;
 let isSatelliteView = true;
@@ -296,6 +297,20 @@ let satelliteTiles;
 let labelsLayer;
 let streetTiles;
 let ssurgoLayer = null;
+
+// Project and sampling points data
+let projectData = {
+    growerName: '',
+    farmName: '',
+    fieldName: '',
+    sampleType: '',
+    zoneInfo: '',
+    samplingPoints: [],
+    createdDate: null,
+    lastModified: null
+};
+let samplingPointMarkers = [];
+let projectInfoExpanded = true;
 
 // ========================================
 // MAP INITIALIZATION
@@ -354,10 +369,21 @@ function startGPSTracking() {
             };
             
             updateGPSMarker();
+            
+            // Check GPS accuracy and show warning if poor
+            const accuracy = Math.round(currentLocation.accuracy);
+            const accuracyWarning = document.getElementById('gpsAccuracyWarning');
+            if (accuracy > 10) {
+                accuracyWarning.style.display = 'block';
+                accuracyWarning.textContent = `⚠ Poor GPS signal (±${accuracy}m)`;
+            } else {
+                accuracyWarning.style.display = 'none';
+            }
+            
             updateGPSStatus(
                 'GPS Active',
                 `${currentLocation.lat.toFixed(6)}, ${currentLocation.lng.toFixed(6)}`,
-                `±${Math.round(currentLocation.accuracy)}m`
+                `±${accuracy}m`
             );
         },
         (error) => {
@@ -375,8 +401,12 @@ function startGPSTracking() {
 function updateGPSMarker() {
     if (!currentLocation) return;
     
+    // Remove old marker and accuracy circle
     if (locationMarker) {
         map.removeLayer(locationMarker);
+    }
+    if (accuracyCircle) {
+        map.removeLayer(accuracyCircle);
     }
     
     // Create custom GPS marker
@@ -392,8 +422,8 @@ function updateGPSMarker() {
         title: `GPS Location (±${Math.round(currentLocation.accuracy)}m)`
     }).addTo(map);
     
-    // Add accuracy circle
-    L.circle([currentLocation.lat, currentLocation.lng], {
+    // Add accuracy circle (and store reference so we can remove it later)
+    accuracyCircle = L.circle([currentLocation.lat, currentLocation.lng], {
         radius: currentLocation.accuracy,
         color: '#667eea',
         fillColor: '#667eea',
@@ -1319,7 +1349,375 @@ function showToast(message, duration = 3000) {
 }
 
 // ========================================
+// PROJECT MANAGEMENT & SAMPLING POINTS
+// ========================================
+
+// Load project data from localStorage
+function loadProjectData() {
+    const saved = localStorage.getItem('fieldSamplerProject');
+    if (saved) {
+        try {
+            projectData = JSON.parse(saved);
+            
+            // Update UI with loaded data
+            if (projectData.growerName) {
+                document.getElementById('growerName').value = projectData.growerName;
+            }
+            if (projectData.farmName) {
+                document.getElementById('farmName').value = projectData.farmName;
+            }
+            if (projectData.fieldName) {
+                document.getElementById('fieldName').value = projectData.fieldName;
+            }
+            if (projectData.sampleType) {
+                document.getElementById('sampleType').value = projectData.sampleType;
+            }
+            if (projectData.zoneInfo) {
+                document.getElementById('zoneInfo').value = projectData.zoneInfo;
+            }
+            
+            // Restore sampling points on map
+            restoreSamplingPoints();
+            updateSamplingPointCount();
+            
+            console.log('Loaded project data:', projectData);
+            if (projectData.samplingPoints.length > 0) {
+                showToast(`Loaded project: ${projectData.samplingPoints.length} sampling points`);
+            }
+        } catch (error) {
+            console.error('Error loading project data:', error);
+        }
+    }
+}
+
+// Save project data to localStorage
+function saveProjectData() {
+    projectData.growerName = document.getElementById('growerName').value;
+    projectData.farmName = document.getElementById('farmName').value;
+    projectData.fieldName = document.getElementById('fieldName').value;
+    projectData.sampleType = document.getElementById('sampleType').value;
+    projectData.zoneInfo = document.getElementById('zoneInfo').value;
+    projectData.lastModified = new Date().toISOString();
+    
+    if (!projectData.createdDate) {
+        projectData.createdDate = projectData.lastModified;
+    }
+    
+    localStorage.setItem('fieldSamplerProject', JSON.stringify(projectData));
+    console.log('Project data saved');
+}
+
+// Auto-save when project info changes
+function setupAutoSave() {
+    document.getElementById('growerName').addEventListener('input', saveProjectData);
+    document.getElementById('farmName').addEventListener('input', saveProjectData);
+    document.getElementById('fieldName').addEventListener('input', saveProjectData);
+    document.getElementById('sampleType').addEventListener('input', saveProjectData);
+    document.getElementById('zoneInfo').addEventListener('input', saveProjectData);
+}
+
+// Toggle project info section
+function toggleProjectInfo() {
+    const content = document.getElementById('projectInfoContent');
+    const toggle = document.getElementById('projectInfoToggle');
+    
+    projectInfoExpanded = !projectInfoExpanded;
+    
+    if (projectInfoExpanded) {
+        content.style.display = 'block';
+        toggle.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        toggle.textContent = '▶';
+    }
+}
+
+// Add a sampling point at current GPS location
+async function addSamplingPoint() {
+    if (!currentLocation) {
+        showToast('⚠️ Waiting for GPS location...', 2000);
+        return;
+    }
+    
+    // Check GPS accuracy and warn if poor
+    const accuracy = Math.round(currentLocation.accuracy);
+    if (accuracy > 15) {
+        if (!confirm(`⚠️ GPS accuracy is poor (±${accuracy}m).\n\nAdd sampling point anyway?\n\nClick OK to continue, Cancel to wait for better signal.`)) {
+            // User chose to wait for better signal
+            showToast('Waiting for better GPS signal...', 2000);
+            return;
+        }
+        // User clicked OK - continue adding point despite poor GPS
+    }
+    
+    // Get soil info at current location
+    let soilType = 'Unknown';
+    let soilMusym = '';
+    let detectedZone = '';
+    
+    // Check if there's a loaded data layer and find what polygon we're in
+    if (loadedData && loadedData.features) {
+        for (const feature of loadedData.features) {
+            const props = feature.properties;
+            const musym = props.MUSYM || props.musym || props.AREASYMBOL || props.MapUnit || props.name || 'Unknown';
+            
+            // Check if current location is within this polygon
+            if (feature.geometry && feature.geometry.type === 'Polygon') {
+                // Simple point-in-polygon check using Leaflet
+                const polygon = L.geoJSON(feature);
+                const point = L.latLng(currentLocation.lat, currentLocation.lng);
+                
+                // Check if point is in polygon bounds (rough check)
+                if (polygon.getBounds().contains(point)) {
+                    soilMusym = musym;
+                    detectedZone = musym; // Save for auto-filling Sample field
+                    
+                    // Try to get full soil info from USDA
+                    try {
+                        const soilInfo = await getSoilInfo(musym, currentLocation.lat, currentLocation.lng);
+                        if (soilInfo && soilInfo.components && soilInfo.components.length > 0) {
+                            soilType = soilInfo.components[0].series;
+                            // Use soil series name if available, otherwise use musym
+                            if (soilInfo.components[0].series !== 'Unknown') {
+                                detectedZone = soilInfo.components[0].series;
+                            }
+                        } else {
+                            soilType = musym;
+                        }
+                    } catch (error) {
+                        soilType = musym;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Auto-fill Sample Name field if empty and we detected a zone
+    const sampleField = document.getElementById('sampleType');
+    if (detectedZone && (!sampleField.value || sampleField.value.trim() === '')) {
+        sampleField.value = detectedZone;
+        saveProjectData(); // Save the auto-filled value
+    }
+    
+    // Create sampling point
+    const pointId = projectData.samplingPoints.length + 1;
+    const samplingPoint = {
+        id: pointId,
+        label: `Sample ${pointId}`,
+        lat: currentLocation.lat,
+        lng: currentLocation.lng,
+        accuracy: Math.round(currentLocation.accuracy),
+        soilType: soilType,
+        soilMusym: soilMusym,
+        notes: '',
+        timestamp: new Date().toISOString()
+    };
+    
+    projectData.samplingPoints.push(samplingPoint);
+    
+    // Add marker to map
+    addSamplingPointMarker(samplingPoint);
+    
+    // Save and update UI
+    saveProjectData();
+    updateSamplingPointCount();
+    
+    showToast(`✅ Added ${samplingPoint.label}`, 2000);
+}
+
+// Add marker for a sampling point
+function addSamplingPointMarker(point) {
+    const marker = L.marker([point.lat, point.lng], {
+        icon: L.divIcon({
+            className: 'sampling-point-marker',
+            html: `<div style="background: #f56565; color: white; border: 3px solid white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${point.id}</div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        }),
+        title: point.label
+    }).addTo(map);
+    
+    // Add popup with point details
+    marker.bindPopup(`
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">${point.label}</div>
+            <div style="font-size: 13px; color: #4a5568; margin-bottom: 4px;"><strong>Soil:</strong> ${point.soilType}</div>
+            <div style="font-size: 12px; color: #718096; margin-bottom: 4px;">
+                ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}
+            </div>
+            <div style="font-size: 12px; color: #718096; margin-bottom: 8px;">Accuracy: ±${point.accuracy}m</div>
+            <textarea id="note-${point.id}" placeholder="Add notes..." 
+                      style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; margin-bottom: 6px; min-height: 60px;">${point.notes}</textarea>
+            <button onclick="savePointNote(${point.id})" 
+                    style="width: 100%; padding: 6px; background: #667eea; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                Save Note
+            </button>
+            <button onclick="deleteSamplingPoint(${point.id})" 
+                    style="width: 100%; padding: 6px; background: #f56565; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 4px;">
+                Delete Point
+            </button>
+        </div>
+    `);
+    
+    samplingPointMarkers.push({ id: point.id, marker: marker });
+}
+
+// Restore sampling points from saved data
+function restoreSamplingPoints() {
+    // Clear existing markers
+    samplingPointMarkers.forEach(item => {
+        map.removeLayer(item.marker);
+    });
+    samplingPointMarkers = [];
+    
+    // Add markers for all saved points
+    projectData.samplingPoints.forEach(point => {
+        addSamplingPointMarker(point);
+    });
+}
+
+// Save note for a sampling point
+function savePointNote(pointId) {
+    const note = document.getElementById(`note-${pointId}`).value;
+    const point = projectData.samplingPoints.find(p => p.id === pointId);
+    if (point) {
+        point.notes = note;
+        saveProjectData();
+        showToast('✅ Note saved', 1500);
+    }
+}
+
+// Delete a sampling point
+function deleteSamplingPoint(pointId) {
+    if (!confirm('Delete this sampling point?')) {
+        return;
+    }
+    
+    // Remove from data
+    projectData.samplingPoints = projectData.samplingPoints.filter(p => p.id !== pointId);
+    
+    // Remove marker from map
+    const markerItem = samplingPointMarkers.find(item => item.id === pointId);
+    if (markerItem) {
+        map.removeLayer(markerItem.marker);
+        samplingPointMarkers = samplingPointMarkers.filter(item => item.id !== pointId);
+    }
+    
+    saveProjectData();
+    updateSamplingPointCount();
+    showToast('🗑️ Point deleted', 1500);
+}
+
+// Update sampling point count display
+function updateSamplingPointCount() {
+    const count = projectData.samplingPoints.length;
+    document.getElementById('samplingPointCount').textContent = 
+        `${count} point${count !== 1 ? 's' : ''}`;
+}
+
+// Export sampling points to CSV
+function exportToCSV() {
+    if (projectData.samplingPoints.length === 0) {
+        showToast('⚠️ No sampling points to export', 2000);
+        return;
+    }
+    
+    // Create CSV content
+    const headers = ['Point ID', 'Label', 'Latitude', 'Longitude', 'Accuracy (m)', 'Soil Type', 'Soil Map Unit', 'Notes', 'Timestamp'];
+    const rows = projectData.samplingPoints.map(point => [
+        point.id,
+        point.label,
+        point.lat.toFixed(6),
+        point.lng.toFixed(6),
+        point.accuracy,
+        point.soilType,
+        point.soilMusym,
+        `"${(point.notes || '').replace(/"/g, '""')}"`, // Escape quotes in notes
+        new Date(point.timestamp).toLocaleString()
+    ]);
+    
+    const csvContent = [
+        `Grower: ${projectData.growerName || 'N/A'}`,
+        `Farm: ${projectData.farmName || 'N/A'}`,
+        `Field: ${projectData.fieldName || 'N/A'}`,
+        `Sample: ${projectData.sampleType || 'N/A'}`,
+        `Notes: ${projectData.zoneInfo || 'N/A'}`,
+        `Export Date: ${new Date().toLocaleString()}`,
+        '', // Blank line
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const farmPart = projectData.farmName ? `${projectData.farmName}_` : '';
+    const filename = `${projectData.growerName || 'field'}_${farmPart}${projectData.fieldName || 'samples'}_${new Date().toISOString().split('T')[0]}.csv`;
+    
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast(`✅ Exported ${projectData.samplingPoints.length} points to CSV`, 3000);
+}
+
+// Clear project with confirmation
+function clearProject() {
+    const count = projectData.samplingPoints.length;
+    const grower = projectData.growerName || 'this project';
+    
+    if (count === 0) {
+        if (!confirm(`Clear all project data for "${grower}"?`)) {
+            return;
+        }
+    } else {
+        if (!confirm(`⚠️ This will delete ${count} sampling point${count !== 1 ? 's' : ''} for "${grower}".\n\nMake sure you've exported your data first!\n\nContinue?`)) {
+            return;
+        }
+    }
+    
+    // Remove all markers
+    samplingPointMarkers.forEach(item => {
+        map.removeLayer(item.marker);
+    });
+    samplingPointMarkers = [];
+    
+    // Clear data
+    projectData = {
+        growerName: '',
+        farmName: '',
+        fieldName: '',
+        sampleType: '',
+        zoneInfo: '',
+        samplingPoints: [],
+        createdDate: null,
+        lastModified: null
+    };
+    
+    // Clear UI
+    document.getElementById('growerName').value = '';
+    document.getElementById('farmName').value = '';
+    document.getElementById('fieldName').value = '';
+    document.getElementById('sampleType').value = '';
+    document.getElementById('zoneInfo').value = '';
+    updateSamplingPointCount();
+    
+    // Save cleared state
+    saveProjectData();
+    
+    showToast('🗑️ Project cleared', 2000);
+}
+
+// ========================================
 // INITIALIZE ON LOAD
 // ========================================
 
-window.addEventListener('load', initMap);
+window.addEventListener('load', () => {
+    initMap();
+    loadProjectData();
+    setupAutoSave();
+});
